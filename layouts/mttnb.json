@@ -127,24 +127,13 @@
                           "role": "spare"
                         }
                       }
-                    },
-                    {
-                      "id": "desk-t1q",
-                      "type": "block",
-                      "content": {
-                        "terminal": "t1q"
-                      },
-                      "padding": [
-                        6,
-                        6
-                      ]
                     }
                   ],
-                  "active": "desk-t1q"
+                  "active": "picker"
                 }
               ],
               "size": {
-                "weight": 1.2000000476837158
+                "weight": 1
               },
               "min": 360,
               "background": "background",
@@ -189,7 +178,7 @@
                 }
               },
               "size": {
-                "weight": 0.7787117958068848
+                "weight": 1
               },
               "min": 280
             },
@@ -221,10 +210,11 @@
               ],
               "active": "graph",
               "size": {
-                "px": 420
+                "px": 380
               },
               "min": 280,
-              "max": 900
+              "max": 900,
+              "hidden": true
             }
           ],
           "padding": 8,

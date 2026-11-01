@@ -4,7 +4,7 @@ English | [中文](README_ZH.md)
 
 A layout and theme for the Herdr desktop app: a fixed column of coding agents on the left, terminals on the right as usual, and a Git commit graph you can open beside them.
 
-<!-- screenshot -->
+![mttnb](preview.png)
 
 ## Features
 
