@@ -1,6 +1,6 @@
 # mttnb
 
-Herdr's own window with a coding desk built in: the sidebar lists spaces and agents, and the work area is split into three cards. On the left a fixed Coding column holds the shown tab's agents: with none it lists every agent Herdr knows, and a click starts one. In the middle are the tab's terminals as usual. On the right a Files / Changes / Graph panel opens from the tab bar. The colours are warm: amber `#ffc799` on near-black in dark mode, rust `#c4692c` on warm white in light mode, following the system appearance.
+Herdr's own window with a coding desk built in: the sidebar lists spaces (with their git state, in folding groups, each with its own icon if you like) and agents, and the work area is split into three cards. On the left a fixed Coding column holds the shown tab's agents: with none it lists every agent Herdr knows, and a click starts one. In the middle are the tab's terminals as usual. On the right a Files / Changes / Graph panel opens from the tab bar. The colours are warm: amber `#ffc799` on near-black in dark mode, rust `#c4692c` on warm white in light mode, following the system appearance.
 
 ![mttnb](preview.png)
 
@@ -11,6 +11,7 @@ Left to right, at zoom 1:
 - **Sidebar**, 248px wide (44–480), on `chrome`, no system title bar (macOS traffic lights at 12, 16):
   - top 46px: Herdr's brand row with search and fold buttons (drags the window);
   - Spaces list and Agents list, sharing the height equally (each at least 90px). The Agents list also shows the Coding column's agents;
+  - the Spaces list: a 31px title row ("Spaces" in 11.5px `dim`, a 26px folder-plus button for a new group, a 26px `+` for a new space); then the groups in order, each a 30px header (11px chevron, 16px icon: a `muted` folder, an emoji or a picture; the name in `foreground` medium; the count of its spaces in 11px `dim`) with its spaces under it, indented 22px, unless folded; then the spaces in no group. A space row is 30px (28px for a worktree under its repo): an 18px icon (the coloured letter on a radius-5 tile, an emoji, or a picture with radius 5), the name in 13px `foreground` (at most 118px, 104px in a group), then at the right in 11.5px: the branch in `dim` (a short commit when detached), `●n` uncommitted changes in `blocked`, `↑n` to push in `ansi2`, `↓n` to pull in `ansi1`, each only when not zero. The shown space is on `selected`, rows radius 8;
   - bottom 69px: Settings and Add machine.
 - A 1px `border` divider.
 - **Work column** on `canvas`:
@@ -50,6 +51,9 @@ The ANSI palettes are in the theme files.
 - **Statuses.** A working agent's header tab has a spinning `working` spinner; blocked and done show a 6px dot in their colour; idle shows nothing. The sidebar's Agents list groups the column's agents with the rest, by status; clicking one there shows its tab and its agent.
 - **Lifetime.** Closing panes, splits or terminals on the right never touches the column's agents. Closing a tab ends its agents; closing a space ends the agents of all its tabs.
 - **Keyboard between column and panes.** Ctrl+Alt+Left from the leftmost pane goes into the column (the agent, or the picker); Ctrl+Alt+Right from the column goes back to the pane the tab was last in. Ctrl+Shift+A goes to the shown agent, or the picker.
+- **Space git.** Read with `git status --porcelain=v2 --branch` where the space's first terminal is: again when a command or an agent's turn ends there, when the repo's `.git` changes, and every minute while the window is in front.
+- **Space icons.** Right-click a space: Herdr's own items (Rename, New / Open / Remove worktree, Close), then Change icon…, Move to <group> for each other group, Remove from <group>, New group… (the space goes in it). Change icon… opens a 420px dialog: a 56px preview and Letter / Emoji / Picture. Emoji: a text field and 24 emoji to click. Picture: a drop zone (and on macOS a Choose… button, the system's file picker); the picture is copied into the Herdr home under a new name. Save applies it; Esc or Cancel leaves it.
+- **Groups.** The folder-plus button opens the group dialog: a name and an icon (Folder / Emoji / Picture). A click on a group's header folds or unfolds it; a folded group holding the shown space shows on `selected`. Dragging a space shows an accent outline on the group header under it; dropping it there puts it in that group, dropping it on another space moves it there and into that space's group (or out of any). Right-click a group: Edit group…, Move up, Move down, Delete group (its spaces go back to the list). The narrow rail (under 160px) lists every space flat.
 - **Panel.** Files, Changes and Graph (or Ctrl+Shift+F, Ctrl+Shift+G, Cmd+G) open that panel on the right; the same button again closes it; another button switches it. Its width and whether it is open stay as left.
 
 ## Built from
@@ -66,10 +70,11 @@ The ANSI palettes are in the theme files.
   - Shared state: `mttnb.desk.chosen` (`{tab id: terminal | "picker"}`), `mttnb.desk.focus`, `mttnb.desk.pick`.
   - Icons: Remix Icon `code-s-slash-line` (`code.svg`) and `add-line` (`add.svg`); it also uses the shipped `mods/pane/close.svg` and `mods/workspace-chrome/spinner.svg`.
 - **`mods/mttnb-tabs`**, a clone of the shipped `tabs` 0.1.11: Files / Changes / Graph toggle the `panel-body` stack (`layout.select`, `layout.show`, `layout.hide`), also from `nextCommand()` (`files`, `changes`, `graph`); the Graph button shows only when `mods/git-graph/main.js` exists.
+- **`mods/mttnb-spaces`**, a clone of the shipped `spaces` 0.1.11, with `store.js` (shared state `mttnb.space.icons`: `{space id: {emoji} | {image}}`; `mttnb.space.groups`: `[{id, name, icon, folded, spaces: [space id]}]`) and `edit.js` (the same mod opened with `openOverlay` and `props.view`: `space-menu` and `group-menu` popups, `icon` and `group` dialogs). It counts the non-`#` lines of the porcelain status as uncommitted changes and always shows the branch. Pictures: `fs` copies them to `data/mttnb-spaces/icons/` (`cp` for files outside the home folder), shown with `image()`. Icons: the shipped `mods/workspace-chrome` ones, and Remix Icon `arrow-up-s-line` (`up.svg`), `arrow-down-s-line` (`down.svg`), `emotion-line` (`emoji.svg`).
 - **`mods/mttnb-agents`**, a clone of the shipped `agents` 0.1.11: also lists live terminals labelled `mttnb.role=desk` (they have no pane, so Herdr's list leaves them out); clicking one runs `mttnb-desk.agent:<terminal>`.
 - **`keys.json`**, section `layout:mttnb`: `ctrl-shift-a` agent, `ctrl-alt-n` new, `ctrl-alt-up` / `ctrl-alt-down` prev / next, `ctrl-alt-left` / `ctrl-alt-right` go-left / go-right, `cmd-g` graph, `ctrl-shift-f` files, `ctrl-shift-g` changes.
 - **Optional:** the git-graph mod (github.com/rabeeh-ta/herdr-git-graph) for the Graph panel. It runs `git` in the focused repository and reaches the network only on Fetch / Push.
-- Programs run: `hc` (the agents), the person's login shell, and the agents themselves.
+- Programs run: `hc` (the agents), the person's login shell, the agents themselves, `git` (the spaces' state), `osascript` (macOS's file picker, on Choose…) and `cp`.
 
 ## Watch out
 
@@ -79,14 +84,20 @@ The ANSI palettes are in the theme files.
 - `pane.focus` on a block that isn't shown yet fails with "no such pane": focus a new agent only once `desk-stack` shows its block.
 - Kill agents of closed tabs only for tabs seen earlier in this run, and only while the local machine's layout is `ready`: while the window loads, `spaces()` can be empty or partial.
 - Spaces on other machines: the column doesn't start agents there.
+- `image()` reads only under the Herdr home: copy a chosen picture there, under a new name each time (an old one stays cached by path).
+- A drag ends on mouse-up wherever it is: the list itself clears it, so a space dropped on empty space goes nowhere.
+- Space ids in groups and icons stay after a space closes (spaces on a machine that's away aren't listed meanwhile); they are simply not drawn.
 - The layout file stores the agents' blocks while they run; a fresh install starts with only `picker` and `spare`.
 
 ## Done when
 
-- `herdr-app check` passes for `mttnb-desk`, `mttnb-tabs` and `mttnb-agents`, and `layout.switch {"name": "mttnb"}` shows the three cards with the picker on the left.
+- `herdr-app check` passes for `mttnb-desk`, `mttnb-tabs`, `mttnb-agents` and `mttnb-spaces`, and `layout.switch {"name": "mttnb"}` shows the three cards with the picker on the left.
 - Clicking an installed agent starts it in the tab's folder, adds its header tab and puts the keyboard in it; `hc ls` shows it with `mttnb.tab` set to the shown tab.
 - `+` and a second agent: both header tabs show, each click switches the column, Ctrl+Alt+Up / Down cycle them.
 - `tab.new` shows the picker in the new tab; switching back shows the old tab's agents unchanged.
 - Splitting a pane on the right and closing it leaves the column's agent running; closing the tab ends its agents.
 - Files / Changes / Graph open and close the right panel, survive a resize of the panel, and adding an agent doesn't close it.
 - Ctrl+Alt+Left from the leftmost pane enters the column; Ctrl+Alt+Right returns to the same pane.
+- A repo with an edited file, an unpushed commit and an unpulled one shows `main ●1 ↑1 ↓1` after its name.
+- Change icon… with an emoji, then with a picture: the row shows it; Letter brings the coloured letter back.
+- A new group with an emoji: dragging two spaces onto its header lists them under it; a click folds it; Delete group puts them back.
