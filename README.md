@@ -1,68 +1,70 @@
 # herdr-mttnb
 
-Herdr 桌面版的布局与主题：左侧固定一栏写代码的 Agent，右侧照常开终端，旁边可以展开 Git 提交图。
+English | [中文](README_ZH.md)
 
-<!-- 截图 -->
+A layout and theme for the Herdr desktop app: a fixed column of coding agents on the left, terminals on the right as usual, and a Git commit graph you can open beside them.
 
-## 功能
+<!-- screenshot -->
 
-- **左侧 Coding 栏**：默认列出 Herdr 支持的所有 Agent（已安装的在前，未安装的置灰），点一下或按 `1`–`9` 就在当前目录启动。
-- **每个 tab 各有一组 Agent**：新开的 tab 左栏是空的选择列表；同一个 tab 可以开多个 Agent，在栏顶的标签之间切换，`+` 再开一个，「结束」点两次关掉当前这个。
-- **关分屏不影响左栏**：左栏的 Agent 不挂在任何终端分屏下面，关掉右侧的分屏或终端都不会把它带走；关掉它所在的 tab 时才一起结束。
-- **侧边栏 Agents 列表**也会列出左栏的 Agent，点击直接跳过去。
-- **Graph 面板**：tab 栏右侧的 Files / Changes / Graph 按钮在右边展开对应面板，再点一次收起。Graph 需要另外安装 Git Graph mod（见下文），没装时不显示这个按钮。
-- **配色**：暖色深色主题 `mttnb-dark` 和浅色主题 `mttnb-light`，跟随系统外观自动切换。
+## Features
 
-## 安装
+- **Coding column on the left**: lists every agent Herdr supports (installed ones first, the others greyed out). Click one, or press `1`–`9`, to start it in the current folder.
+- **Each tab has its own agents**: a new tab starts with an empty picker. A tab can run several agents: switch between them with the tabs at the top of the column, `+` opens another, and "End" (click twice) ends the shown one.
+- **Closing splits leaves the column alone**: the column's agents don't belong to any terminal pane, so closing panes or terminals on the right never takes them down. They end when their tab closes.
+- **The sidebar's Agents list** also shows the column's agents; click one to jump to it.
+- **Graph panel**: the Files / Changes / Graph buttons on the right of the tab bar open that panel on the right; click again to close it. Graph needs the Git Graph mod (see below); without it the button doesn't show.
+- **Colours**: a warm dark theme `mttnb-dark` and a light theme `mttnb-light`, following the system appearance.
 
-需要 Herdr 桌面版 0.1.11 及以上。
+## Install
+
+Requires the Herdr desktop app 0.1.11 or later.
 
 ```sh
 git clone https://github.com/Licoy/herdr-mttnb
 sh herdr-mttnb/install.sh
 ```
 
-脚本会把 `layouts/`、`themes/`、`mods/` 复制到 `~/.config/herdr-app`（设置了 `HERDR_APP_HOME` 时用它），把快捷键合并进 `keys.json`（原文件备份为 `keys.json.bak`），然后切换到 mttnb 布局。
+The script copies `layouts/`, `themes/` and `mods/` into `~/.config/herdr-app` (or `HERDR_APP_HOME` when set), merges the key bindings into `keys.json` (the old file is kept as `keys.json.bak`), then switches to the mttnb layout.
 
-手动安装：把 `layouts`、`themes`、`mods` 三个目录复制进 Herdr 目录，把 `keys.json` 里的 `layout:mttnb` 一段加进你自己的 `keys.json`，再执行：
+To install by hand, copy the `layouts`, `themes` and `mods` folders into your Herdr home, add the `layout:mttnb` section of `keys.json` to your own `keys.json`, then run:
 
 ```sh
 herdr-app do layout.switch '{"name":"mttnb"}'
 ```
 
-### Graph 面板（可选）
+### Graph panel (optional)
 
 ```sh
 git clone https://github.com/rabeeh-ta/herdr-git-graph
 cp -R herdr-git-graph/mods/git-graph ~/.config/herdr-app/mods/
 ```
 
-Git Graph 只在你的仓库里执行 `git`，只有点 Fetch / Push 时才联网。
+Git Graph only runs `git` in your repositories, and goes online only when you click Fetch / Push.
 
-## 快捷键
+## Keys
 
-仅在 mttnb 布局下生效。
+Active in the mttnb layout only.
 
-| 按键 | 作用 |
+| Key | Action |
 | --- | --- |
-| `Ctrl+Shift+A` | 回到左栏的 Agent（没有时打开选择列表） |
-| `Ctrl+Alt+N` | 再开一个 Agent |
-| `Ctrl+Alt+↑` / `Ctrl+Alt+↓` | 切换左栏的上一个 / 下一个 Agent |
-| `Ctrl+Alt+←` / `Ctrl+Alt+→` | 在左栏和右侧终端之间移动 |
-| `Cmd+G` | 展开 / 收起 Graph |
-| `Ctrl+Shift+F` | 展开 / 收起 Files |
-| `Ctrl+Shift+G` | 展开 / 收起 Changes |
+| `Ctrl+Shift+A` | Back to the column's agent (opens the picker when there is none) |
+| `Ctrl+Alt+N` | Start another agent |
+| `Ctrl+Alt+↑` / `Ctrl+Alt+↓` | Previous / next agent in the column |
+| `Ctrl+Alt+←` / `Ctrl+Alt+→` | Move between the column and the terminals |
+| `Cmd+G` | Open / close Graph |
+| `Ctrl+Shift+F` | Open / close Files |
+| `Ctrl+Shift+G` | Open / close Changes |
 
-## 说明
+## Notes
 
-- 左栏的 Agent 是用 `hc run --no-parent` 启动的后台终端，带有 `mttnb.role=desk`、`mttnb.space`、`mttnb.tab`、`mttnb.agent` 标签，可以用 `hc ls` 查看。
-- 远程机器上的空间暂不支持在左栏启动 Agent。
-- `mods/mttnb-tabs` 和 `mods/mttnb-agents` 由 Herdr 自带的 `tabs`、`agents` mod 克隆后修改而来。
-- 图标来自 [Remix Icon](https://remixicon.com)（Apache-2.0）。
+- The column's agents are background terminals started with `hc run --no-parent`, labelled `mttnb.role=desk`, `mttnb.space`, `mttnb.tab` and `mttnb.agent`; `hc ls` lists them.
+- Starting agents in the column isn't supported yet for spaces on remote machines.
+- `mods/mttnb-tabs` and `mods/mttnb-agents` are clones of Herdr's own `tabs` and `agents` mods, modified.
+- Icons are from [Remix Icon](https://remixicon.com) (Apache-2.0).
 
-## 卸载
+## Uninstall
 
-删除 `~/.config/herdr-app` 下的这些文件，并去掉 `keys.json` 里的 `layout:mttnb` 一段：
+Delete these from `~/.config/herdr-app` and remove the `layout:mttnb` section from `keys.json`:
 
 ```
 layouts/mttnb.json
@@ -74,6 +76,6 @@ mods/mttnb-tabs/
 mods/mttnb-agents/
 ```
 
-## 许可
+## License
 
 [MIT](LICENSE)
