@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200">
+  <rect width="320" height="200" rx="10" fill="#0a0a0a"/>
+  <rect width="64" height="200" rx="10" fill="#151515"/>
+  <rect x="58" width="6" height="200" fill="#151515"/>
+  <circle cx="12" cy="12" r="3" fill="#ff5f57"/><circle cx="21" cy="12" r="3" fill="#febc2e"/><circle cx="30" cy="12" r="3" fill="#28c840"/>
+  <rect x="10" y="30" width="44" height="7" rx="2" fill="#ffc79933"/>
+  <rect x="10" y="42" width="34" height="5" rx="2" fill="#ffffff1f"/>
+  <rect x="10" y="52" width="38" height="5" rx="2" fill="#ffffff1f"/>
+  <rect x="10" y="110" width="40" height="5" rx="2" fill="#ffffff1f"/>
+  <rect x="10" y="120" width="30" height="5" rx="2" fill="#ffffff1f"/>
+  <rect x="64" width="256" height="20" fill="#151515"/>
+  <rect x="70" y="5" width="34" height="10" rx="3" fill="#262626"/>
+  <rect x="290" y="6" width="24" height="8" rx="3" fill="#ffc79933"/>
+  <rect x="70" y="26" width="104" height="160" rx="6" fill="#121212" stroke="#ffc799"/>
+  <rect x="70" y="26" width="104" height="14" rx="6" fill="#151515"/>
+  <rect x="78" y="48" width="70" height="6" rx="2" fill="#e6e1dc"/>
+  <rect x="78" y="62" width="88" height="16" rx="3" fill="#181818" stroke="#ffffff1a"/>
+  <rect x="78" y="82" width="88" height="16" rx="3" fill="#181818" stroke="#ffffff1a"/>
+  <rect x="78" y="102" width="88" height="16" rx="3" fill="#181818" stroke="#ffffff1a"/>
+  <rect x="78" y="122" width="88" height="16" rx="3" fill="#181818" stroke="#ffffff1a" opacity=".5"/>
+  <rect x="180" y="26" width="72" height="160" rx="6" fill="#121212" stroke="#ffffff1a"/>
+  <rect x="188" y="40" width="44" height="4" rx="2" fill="#99ffe4"/>
+  <rect x="188" y="50" width="54" height="4" rx="2" fill="#ffffff2e"/>
+  <rect x="188" y="60" width="36" height="4" rx="2" fill="#ffffff2e"/>
+  <rect x="258" y="26" width="56" height="160" rx="6" fill="#151515"/>
+  <path d="M268 44v100" stroke="#8cb4ff" stroke-width="2"/>
+  <path d="M268 80c0 10 10 10 10 20v24" stroke="#c8a2ff" stroke-width="2" fill="none"/>
+  <circle cx="268" cy="44" r="3" fill="#8cb4ff"/><circle cx="268" cy="64" r="3" fill="#8cb4ff"/>
+  <circle cx="278" cy="108" r="3" fill="#c8a2ff"/><circle cx="268" cy="132" r="3" fill="#8cb4ff"/>
+  <rect x="64" y="190" width="256" height="10" fill="#151515"/>
+</svg>

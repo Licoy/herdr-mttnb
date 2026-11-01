@@ -1,0 +1,266 @@
+{
+  "id": "root",
+  "cloned_from": {
+    "name": "main",
+    "version": "0.1.11"
+  },
+  "type": "row",
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "children": [
+        {
+          "id": "brand",
+          "type": "block",
+          "content": {
+            "mod": "workspace-chrome"
+          },
+          "size": {
+            "px": 46
+          },
+          "window_drag": true
+        },
+        {
+          "id": "sidebar-lists",
+          "type": "column",
+          "children": [
+            {
+              "id": "spaces",
+              "type": "block",
+              "content": {
+                "mod": "spaces"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            },
+            {
+              "id": "agents",
+              "type": "block",
+              "content": {
+                "mod": "mttnb-agents"
+              },
+              "size": {
+                "weight": 1
+              },
+              "min": 90
+            }
+          ]
+        },
+        {
+          "id": "sidebar-footer",
+          "type": "block",
+          "content": {
+            "mod": "workspace-chrome",
+            "props": {
+              "footer": true
+            }
+          },
+          "size": {
+            "px": 69
+          }
+        }
+      ],
+      "size": {
+        "px": 248
+      },
+      "min": 44,
+      "max": 480,
+      "background": "chrome",
+      "resizable": false
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "children": [
+        {
+          "id": "tabs",
+          "type": "block",
+          "content": {
+            "mod": "mttnb-tabs"
+          },
+          "size": {
+            "px": 42
+          },
+          "window_drag": true
+        },
+        {
+          "id": "work-body",
+          "type": "row",
+          "children": [
+            {
+              "id": "desk",
+              "type": "column",
+              "children": [
+                {
+                  "id": "desk-header",
+                  "type": "block",
+                  "content": {
+                    "mod": "mttnb-desk"
+                  },
+                  "size": {
+                    "px": 34
+                  }
+                },
+                {
+                  "id": "desk-stack",
+                  "type": "stack",
+                  "children": [
+                    {
+                      "id": "picker",
+                      "type": "block",
+                      "content": {
+                        "mod": "mttnb-desk",
+                        "props": {
+                          "role": "picker"
+                        }
+                      }
+                    },
+                    {
+                      "id": "spare",
+                      "type": "block",
+                      "content": {
+                        "mod": "mttnb-desk",
+                        "props": {
+                          "role": "spare"
+                        }
+                      }
+                    },
+                    {
+                      "id": "desk-t1q",
+                      "type": "block",
+                      "content": {
+                        "terminal": "t1q"
+                      },
+                      "padding": [
+                        6,
+                        6
+                      ]
+                    }
+                  ],
+                  "active": "desk-t1q"
+                }
+              ],
+              "size": {
+                "weight": 1.2000000476837158
+              },
+              "min": 360,
+              "background": "background",
+              "border": {
+                "width": 1,
+                "color": "border"
+              },
+              "radius": 10,
+              "focus": {
+                "border": {
+                  "width": 1,
+                  "color": "accent"
+                }
+              }
+            },
+            {
+              "id": "main",
+              "type": "block",
+              "content": {
+                "tab": "active",
+                "pane": {
+                  "header": {
+                    "content": {
+                      "mod": "pane"
+                    },
+                    "reveal": "always",
+                    "height": 30,
+                    "position": "top"
+                  },
+                  "background": "background",
+                  "border": {
+                    "width": 1,
+                    "color": "border"
+                  },
+                  "focus": {
+                    "width": 1,
+                    "color": "accent"
+                  },
+                  "radius": 10,
+                  "gap": 8,
+                  "lone": true
+                }
+              },
+              "size": {
+                "weight": 0.7787117958068848
+              },
+              "min": 280
+            },
+            {
+              "id": "panel-body",
+              "type": "stack",
+              "children": [
+                {
+                  "id": "files",
+                  "type": "block",
+                  "content": {
+                    "mod": "files"
+                  }
+                },
+                {
+                  "id": "changes",
+                  "type": "block",
+                  "content": {
+                    "mod": "changes"
+                  }
+                },
+                {
+                  "id": "graph",
+                  "type": "block",
+                  "content": {
+                    "mod": "git-graph"
+                  }
+                }
+              ],
+              "active": "graph",
+              "size": {
+                "px": 420
+              },
+              "min": 280,
+              "max": 900
+            }
+          ],
+          "padding": 8,
+          "gap": 8
+        },
+        {
+          "id": "status",
+          "type": "block",
+          "content": {
+            "mod": "workspace-status"
+          },
+          "size": {
+            "px": 28
+          }
+        }
+      ],
+      "resizable": false
+    }
+  ],
+  "background": "canvas",
+  "theme": {
+    "light": "mttnb-light",
+    "dark": "mttnb-dark"
+  },
+  "terminal_padding": [
+    14,
+    12
+  ],
+  "divider": {
+    "width": 1,
+    "color": "border"
+  },
+  "titlebar": "none",
+  "traffic_lights": [
+    12,
+    16
+  ],
+  "preview": "layouts/mttnb.svg"
+}

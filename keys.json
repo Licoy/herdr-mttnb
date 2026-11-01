@@ -1,0 +1,13 @@
+{
+  "layout:mttnb": {
+    "ctrl-shift-a": "mttnb-desk.agent",
+    "ctrl-alt-left": "mttnb-desk.go-left",
+    "ctrl-alt-right": "mttnb-desk.go-right",
+    "cmd-g": "mttnb-tabs.graph",
+    "ctrl-shift-f": "mttnb-tabs.files",
+    "ctrl-shift-g": "mttnb-tabs.changes",
+    "ctrl-alt-n": "mttnb-desk.new",
+    "ctrl-alt-up": "mttnb-desk.prev",
+    "ctrl-alt-down": "mttnb-desk.next"
+  }
+}
