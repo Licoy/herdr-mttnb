@@ -127,7 +127,7 @@ async function startDesk(place, agent) {
   if (!place || !agent?.installed || starting.has(place.tab.id)) return;
   const { space, tab } = place;
   if (space.machine) {
-    notify({ title: "mttnb", body: "左侧 Coding 面板目前只支持本机的空间。", level: "warning" });
+    notify({ title: "mttnb", body: "The Coding column only works for spaces on this computer for now.", level: "warning" });
     return;
   }
   starting.add(tab.id);
@@ -141,7 +141,7 @@ async function startDesk(place, agent) {
     const address = JSON.parse(r.stdout).address;
     if (address) { choose(tab.id, address); setShared(FOCUS, address); }
   } catch (e) {
-    notify({ title: `mttnb: ${agent.name} 没有启动`, body: String(e?.message ?? e), level: "error" });
+    notify({ title: `mttnb: ${agent.name} didn't start`, body: String(e?.message ?? e), level: "error" });
   } finally {
     starting.delete(tab.id);
   }
@@ -403,7 +403,7 @@ export default class MttnbDesk extends View {
           cx.notify();
         })
         .child(svg("mods/pane/close.svg").size(11))
-        .child(confirming ? "再点一次结束" : "结束")));
+        .child(confirming ? "Click again to end" : "End")));
   }
 
   // One desk agent in the header: its status, icon and name; a click shows it.
@@ -433,6 +433,7 @@ export default class MttnbDesk extends View {
     const missing = list.filter((a) => !a.installed);
     const remote = Boolean(space?.machine);
     const running = place ? desksOf(place.tab.id).length : 0;
+    const dir = place ? tildify(folderOf(place)) : "~";
     const row = (a, i) => {
       const on = a.installed && !remote;
       return h_flex().id(`agent-${a.key}`).h(46).px(10).gap(11).flex_none().items_center().rounded(8)
@@ -445,7 +446,7 @@ export default class MttnbDesk extends View {
           .child(div().truncate().text_size(13).text_color(t.foreground).font_semibold().child(a.name))
           .child(div().truncate().text_size(11).text_color(t.dim).child(a.run.join(" "))))
         .child(div().flex_none().text_size(11).text_color(t.dim)
-          .child(!a.installed ? "未安装" : starting.has(place?.tab.id) ? "" : i < 9 ? String(i + 1) : ""));
+          .child(!a.installed ? "Not installed" : starting.has(place?.tab.id) ? "" : i < 9 ? String(i + 1) : ""));
     };
     const section = (label) => div().pt(10).pb(2).px(2).text_size(11).text_color(t.dim).child(label);
     return v_flex().id("picker").size_full().bg(t.background).track_focus(this.handle)
@@ -458,17 +459,19 @@ export default class MttnbDesk extends View {
         .child(h_flex().gap(10).items_center().pb(4)
           .child(svg("mods/mttnb-desk/code.svg").size(20).flex_none().text_color(t.accent))
           .child(v_flex().gap(2)
-            .child(div().text_size(15).font_semibold().text_color(t.foreground).child(running ? "再开一个 Agent" : "选择一个 Agent 开始写代码"))
+            .child(div().text_size(15).font_semibold().text_color(t.foreground).child(running ? "Start another agent" : "Pick an agent to start coding"))
             .child(div().text_size(11.5).text_color(t.dim)
-              .child(remote ? "这个空间在另一台机器上，Coding 面板目前只支持本机。" : running ? `这个 tab 已有 ${running} 个在运行，点上方的标签切回去；新的也在 ${place ? tildify(folderOf(place)) : "~"} 启动。` : `在 ${place ? tildify(folderOf(place)) : "~"} 启动，属于当前 tab；右侧照常开终端。`))))
-        .when(this.agents === null, (el) => el.child(div().py(8).text_size(12).text_color(t.dim).child(this.failed ? "无法读取 Agent 列表" : "正在检测已安装的 Agent…")))
-        .when(ready.length > 0, (el) => el.child(section(`已安装 · ${ready.length}`)).children(ready.map(row)))
-        .when(missing.length > 0, (el) => el.child(section(`未安装 · ${missing.length}`)).children(missing.map((a) => row(a, 99)))))
+              .child(remote ? "This space is on another machine: the Coding column only works on this computer for now."
+                : running ? `${running} running in this tab: use the tabs above to switch back. A new one also starts in ${dir}.`
+                : `Starts in ${dir}, in this tab. Terminals stay on the right.`))))
+        .when(this.agents === null, (el) => el.child(div().py(8).text_size(12).text_color(t.dim).child(this.failed ? "Couldn't read the agent list" : "Looking for installed agents…")))
+        .when(ready.length > 0, (el) => el.child(section(`Installed · ${ready.length}`)).children(ready.map(row)))
+        .when(missing.length > 0, (el) => el.child(section(`Not installed · ${missing.length}`)).children(missing.map((a) => row(a, 99)))))
       .child(h_flex().h(30).px(18).gap(14).flex_none().items_center().border_t(1).border_color(t.border)
         .text_size(11).text_color(t.dim)
-        .child("1-9 快速启动")
-        .child(`${keyLabel("ctrl-alt-n")} 新开`)
-        .child(`${keyLabel("ctrl-alt-up").replace(/Up$/, "↑↓")} 切换`)
-        .child(`${keyLabel("ctrl-alt-right")} 去终端`));
+        .child("1-9 start")
+        .child(`${keyLabel("ctrl-alt-n")} new`)
+        .child(`${keyLabel("ctrl-alt-up").replace(/Up$/, "↑↓")} switch`)
+        .child(`${keyLabel("ctrl-alt-right")} terminals`));
   }
 }

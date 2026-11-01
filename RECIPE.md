@@ -17,8 +17,8 @@ Left to right, at zoom 1:
   - top 42px: the tab bar (drags the window): tabs as pills with a `+` menu; on the right `+`, then Files, Changes and Graph buttons (Graph only when the git-graph mod is installed); the open panel's button is highlighted;
   - the body, 8px padding and 8px gaps, three cards side by side:
     - **Coding column**, weight 1 (at least 360px), on `background`, radius 10, 1px `border` (the accent when it has the keyboard):
-      - a 34px header on `chrome`, 12.5px text. With no agent: a 14px accent code icon, "Coding" and the tab's folder in `dim`. With agents: one 26px tab per agent (program icon, name, a `working` spinner or a `blocked` / `done` 6px dot; the shown one on `raised` with a `border` outline), "Claude Code 2" for the same program twice; then a 24px `+` (on `selected` while the picker shows) and an "End" button (`结束`) at 11.5px;
-      - below it, the shown agent's terminal (6px padding), or the **picker**: a 20px accent code icon and a 15px title ("选择一个 Agent 开始写代码", or "再开一个 Agent" when the tab already has some), an 11.5px line on where it starts; then "已安装 · n" with one 46px row per installed agent (26px program tile, name in 13px semibold, its command in 11px `dim`, its 1–9 key on the right; `surface` with a `border` outline, `selected` with an accent outline on hover), then "未安装 · n" with the rest at half opacity marked "未安装"; a 30px footer of key hints in 11px `dim`;
+      - a 34px header on `chrome`, 12.5px text. With no agent: a 14px accent code icon, "Coding" and the tab's folder in `dim`. With agents: one 26px tab per agent (program icon, name, a `working` spinner or a `blocked` / `done` 6px dot; the shown one on `raised` with a `border` outline), "Claude Code 2" for the same program twice; then a 24px `+` (on `selected` while the picker shows) and an "End" button at 11.5px;
+      - below it, the shown agent's terminal (6px padding), or the **picker**: a 20px accent code icon and a 15px title ("Pick an agent to start coding", or "Start another agent" when the tab already has some), an 11.5px line on where it starts; then "Installed · n" with one 46px row per installed agent (26px program tile, name in 13px semibold, its command in 11px `dim`, its 1–9 key on the right; `surface` with a `border` outline, `selected` with an accent outline on hover), then "Not installed · n" with the rest at half opacity marked "Not installed"; a 30px footer of key hints in 11px `dim`;
     - **the tab's panes**, weight 1 (at least 280px): Herdr's pane cards on `background`, radius 10, 1px `border`, accent border on the focused one, 30px `pane` header on top, 8px gaps;
     - **panel**, 380px (280–900), hidden at start: a stack of Files, Changes and Graph;
   - bottom 28px: status bar (machine, branch, agent count, command palette hint).
@@ -46,7 +46,7 @@ The ANSI palettes are in the theme files.
 - **Agents per tab.** Each tab has its own Coding column. A new tab shows the picker; switching tabs switches the column to that tab's agents and the one it last showed.
 - **Starting one.** Clicking an installed agent in the picker (or pressing 1–9 while it has the keyboard) starts it in the tab's first terminal's folder (else the space's), adds it as a tab in the header and shows it with the keyboard in it. Not-installed agents do nothing. In a space on another machine the rows are dimmed and the picker says it only works on this computer.
 - **Several agents.** `+` in the header (or Ctrl+Alt+N) shows the picker again; the running agents keep running. A header tab shows its agent; Ctrl+Alt+Up / Down go to the previous / next.
-- **Ending one.** "End" turns into "再点一次结束" in the `blocked` colour for 3 seconds; a second click ends the shown agent and the column shows the next one, or the picker when none are left.
+- **Ending one.** "End" turns into "Click again to end" in the `blocked` colour for 3 seconds; a second click ends the shown agent and the column shows the next one, or the picker when none are left.
 - **Statuses.** A working agent's header tab has a spinning `working` spinner; blocked and done show a 6px dot in their colour; idle shows nothing. The sidebar's Agents list groups the column's agents with the rest, by status; clicking one there shows its tab and its agent.
 - **Lifetime.** Closing panes, splits or terminals on the right never touches the column's agents. Closing a tab ends its agents; closing a space ends the agents of all its tabs.
 - **Keyboard between column and panes.** Ctrl+Alt+Left from the leftmost pane goes into the column (the agent, or the picker); Ctrl+Alt+Right from the column goes back to the pane the tab was last in. Ctrl+Shift+A goes to the shown agent, or the picker.
@@ -78,7 +78,6 @@ The ANSI palettes are in the theme files.
 - The agents need `--no-parent`: Herdr hangs up an agent's sub-agents when its pane closes, so an agent started under a pane's terminal dies with that pane.
 - `pane.focus` on a block that isn't shown yet fails with "no such pane": focus a new agent only once `desk-stack` shows its block.
 - Kill agents of closed tabs only for tabs seen earlier in this run, and only while the local machine's layout is `ready`: while the window loads, `spaces()` can be empty or partial.
-- The header and picker text is in Chinese (`结束`, `未安装`, the picker title and hints).
 - Spaces on other machines: the column doesn't start agents there.
 - The layout file stores the agents' blocks while they run; a fresh install starts with only `picker` and `spare`.
 
