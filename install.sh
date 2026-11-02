@@ -9,7 +9,7 @@ home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
 mkdir -p "$home/layouts" "$home/themes" "$home/mods"
 cp "$here"/layouts/mttnb.json "$here"/layouts/mttnb.svg "$home/layouts/"
 cp "$here"/themes/mttnb-*.json "$home/themes/"
-for m in mttnb-desk mttnb-tabs mttnb-agents mttnb-spaces; do
+for m in mttnb-desk mttnb-tabs mttnb-agents mttnb-spaces mttnb-status; do
   rm -rf "$home/mods/$m"
   cp -R "$here/mods/$m" "$home/mods/$m"
 done

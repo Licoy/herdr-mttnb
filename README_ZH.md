@@ -8,13 +8,13 @@ Herdr 桌面版的布局与主题：左侧固定一栏写代码的 Agent，右�
 
 ## 功能
 
-- **左侧 Coding 栏**：默认列出 Herdr 支持的所有 Agent（已安装的在前，未安装的置灰），点一下或按 `1`–`9` 就在当前目录启动。
+- **左侧 Coding 栏**：默认列出 Herdr 支持的所有 Agent（已安装的在前，未安装的收成一行，点开才列出来），点一下或按 `1`–`9` 就在当前目录启动。
 - **每个 tab 各有一组 Agent**：新开的 tab 左栏是空的选择列表；同一个 tab 可以开多个 Agent，在栏顶的标签之间切换，`+` 再开一个，「End」点两次关掉当前这个。
 - **关分屏不影响左栏**：左栏的 Agent 不挂在任何终端分屏下面，关掉右侧的分屏或终端都不会把它带走；关掉它所在的 tab 时才一起结束。
-- **侧边栏 Agents 列表**也会列出左栏的 Agent，点击直接跳过去。
+- **侧边栏 Agents 列表**也会列出左栏的 Agent，点击直接跳过去。底部状态栏也会把它们算进 Agent 数，并显示有几个正在工作。
 - **Git 状态一目了然**：每个空间名字后面显示当前分支，然后是 `●n` 待提交的改动、`↑n` 待推送和 `↓n` 待拉取的提交（为 0 时不显示）。
 - **空间图标**：右键空间 → **Change icon…**，可以保留默认的彩色首字母，也可以换成 emoji 或图片（拖进来，macOS 上也可以点 **Choose…** 选择）。
-- **空间分组**：**Spaces** 旁边的文件夹按钮新建分组，分组有名称和图标（文件夹、emoji 或图片）。组内的空间缩进显示在分组下面，点分组标题可以展开或折叠。把空间拖到分组标题上（或组内空间之间），或者右键空间 → **Move to …** 就能放进分组。右键分组可以编辑、移动或删除；删除分组后，里面的空间回到列表中。
+- **空间分组**：**Spaces** 旁边的文件夹按钮新建分组，分组有名称和图标（文件夹、emoji 或图片）。组内的空间挂在分组下面的树形连线上，未分组的空间用分隔线隔开；点分组标题可以展开或折叠。折叠后，分组名后面会汇总组内空间的情况：最紧急的 Agent 状态，以及 `●n` `↑n` `↓n` 的合计。把空间拖到分组标题上（或组内空间之间），或者右键空间 → **Move to …** 就能放进分组。右键分组可以编辑、移动或删除；删除分组后，里面的空间回到列表中。
 - **Graph 面板**：tab 栏右侧的 Files / Changes / Graph 按钮在右边展开对应面板，再点一次收起。Graph 需要另外安装 Git Graph mod（见下文），没装时不显示这个按钮。
 - **配色**：暖色深色主题 `mttnb-dark` 和浅色主题 `mttnb-light`，跟随系统外观自动切换。
 
@@ -62,7 +62,7 @@ Git Graph 只在你的仓库里执行 `git`，只有点 Fetch / Push 时才联�
 
 - 左栏的 Agent 是用 `hc run --no-parent` 启动的后台终端，带有 `mttnb.role=desk`、`mttnb.space`、`mttnb.tab`、`mttnb.agent` 标签，可以用 `hc ls` 查看。
 - 远程机器上的空间暂不支持在左栏启动 Agent。
-- `mods/mttnb-tabs`、`mods/mttnb-agents` 和 `mods/mttnb-spaces` 由 Herdr 自带的 `tabs`、`agents`、`spaces` mod 克隆后修改而来。
+- `mods/mttnb-tabs`、`mods/mttnb-agents`、`mods/mttnb-spaces` 和 `mods/mttnb-status` 由 Herdr 自带的 `tabs`、`agents`、`spaces`、`workspace-status` mod 克隆后修改而来。
 - 空间图标和分组保存在 Herdr 的共享状态里；选用的图片会复制到 `~/.config/herdr-app/data/mttnb-spaces/icons/`。
 - 图标来自 [Remix Icon](https://remixicon.com)（Apache-2.0）。
 
@@ -79,6 +79,7 @@ mods/mttnb-desk/
 mods/mttnb-tabs/
 mods/mttnb-agents/
 mods/mttnb-spaces/
+mods/mttnb-status/
 data/mttnb-spaces/
 ```
 

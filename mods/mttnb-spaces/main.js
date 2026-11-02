@@ -1,8 +1,8 @@
 // Workspace spaces: stable colored avatars, worktrees under their checkout,
 // grouped by machine when more than one is known. After a space's name, the git
 // state where its first terminal is now: branch, uncommitted changes, ahead/behind.
-// Agent state lives in the agents list, not here. Click to switch, right-click for
-// its menu, drag to reorder.
+// Agent state lives in the agents list, not here (only a folded group sums it up).
+// Click to switch, right-click for its menu, drag to reorder.
 //
 // mttnb's copy of Herdr's spaces mod (mod.clone): a space can have its own icon (an
 // emoji or a picture) and spaces can sit in folding groups, each with a name and an
@@ -11,7 +11,7 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, machines, panes, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props } from "herdr";
+import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props } from "herdr";
 import { icons, groups, updateGroup, moveToGroup, iconTile } from "./store.js";
 import { Editor, openGroup } from "./edit.js";
 
@@ -52,6 +52,28 @@ export function glyph(status) {
 export function tone(t, status) {
   return t[status] ?? t.unknown;
 }
+
+// The most urgent of some agent statuses; idle and none count as nothing.
+const URGENT = ["blocked", "done", "working"];
+const urgent = (statuses) => URGENT.find((s) => statuses.includes(s)) ?? null;
+
+// Each space's Coding column agents' statuses (mttnb-desk): they have no pane, so a
+// space's own status leaves them out.
+function deskStatuses() {
+  const listed = new Map(agents().map((a) => [a.address, a.status]));
+  const out = {};
+  for (const k of terminals()) {
+    if (k.state !== "live" || k.labels?.["mttnb.role"] !== "desk") continue;
+    const s = listed.get(k.address) ?? k.status;
+    (out[k.labels["mttnb.space"]] ??= []).push(s === "error" ? "blocked" : s);
+  }
+  return out;
+}
+
+// A group's spaces hang off a line under its header's chevron, 13px in: from the
+// header down, a branch to each space, ending at the last one.
+const GUIDE = -7; // the line, from a grouped row's left edge (it sits 20px in)
+const guide = (el, t) => el.absolute().bg(t.dim).opacity(0.45);
 
 export default class Spaces extends View {
   init(_props, cx) {
@@ -274,9 +296,9 @@ export default class Spaces extends View {
     });
   }
 
-  // One machine's rows: each group's header with its spaces under it, then the spaces in
-  // no group. A worktree row stays under the space above it. Empty groups show on this
-  // computer's list only; the narrow rail lists every space flat.
+  // One machine's rows: each group's header with its spaces under it, then, past a
+  // divider, the spaces in no group. A worktree row stays under the space above it.
+  // Empty groups show on this computer's list only; the narrow rail lists every space flat.
   withGroups(rows, t, collapsed, local) {
     if (collapsed) return rows.map((r) => this.compact(r, t));
     const units = [];
@@ -290,19 +312,33 @@ export default class Spaces extends View {
     for (const g of list) {
       const mine = units.filter((u) => groupOf(u) === g.id);
       if (!mine.length && !local) continue;
-      out.push(this.groupHead(g, mine, t));
-      if (!g.folded) for (const u of mine) for (const r of u) out.push(this.row(r, t, g.id));
+      // A space branches off the line (the last one ends it); a worktree under a space
+      // that isn't the last lets the line pass by.
+      const kids = g.folded ? [] : mine.flatMap((u, n) => {
+        const last = n === mine.length - 1;
+        return u.map((r) => this.row(r, t, g.id, r.tree ? (last ? null : "pass") : last ? "last" : "mid"));
+      });
+      out.push(v_flex().id(`group-block-${g.id}`).flex_none().when(out.length > 0, (el) => el.mt(6))
+        .child(this.groupHead(g, mine, t)).children(kids));
     }
-    for (const u of units) if (!groupOf(u)) for (const r of u) out.push(this.row(r, t, null));
+    const loose = units.filter((u) => !groupOf(u));
+    if (out.length && loose.length) out.push(div().flex_none().h(1).mx(8).mt(7).mb(6).bg(t.border));
+    for (const u of loose) for (const r of u) out.push(this.row(r, t, null));
     return out;
   }
 
   // A group's header: a click folds or unfolds it, a dragged space dropped on it joins it,
-  // right-click for its menu. Folded with the shown space inside, it shows as selected.
+  // right-click for its menu. Folded with the shown space inside, it shows as selected,
+  // and what its spaces would show adds up after its name: the most urgent agent, then
+  // their uncommitted changes, commits to push and to pull.
   groupHead(g, units, t) {
-    const holdsShown = g.folded && units.some((u) => u.some((r) => r.w.active));
+    const rows = units.flat();
+    const holdsShown = g.folded && rows.some((r) => r.w.active);
     const target = this.pressed !== null && this.overGroup === g.id;
-    return h_flex().id(`group-${g.id}`).h(30).flex_none().px(8).gap(7).items_center().rounded(8)
+    const sum = (k) => rows.reduce((n, r) => n + (r.g?.[k] ?? 0), 0);
+    const status = g.folded ? urgent(rows.flatMap((r) => [r.w.status, ...(this.desks[r.w.id] ?? [])])) : null;
+    const changes = g.folded ? sum("changes") : 0, ahead = g.folded ? sum("ahead") : 0, behind = g.folded ? sum("behind") : 0;
+    return h_flex().relative().id(`group-${g.id}`).h(30).flex_none().px(8).gap(7).items_center().rounded(8)
       .border_1().border_color(target ? t.accent : "#00000000")
       .when(holdsShown, (el) => el.bg(t.selected))
       .when(!holdsShown, (el) => el.hover((s) => s.bg(t.hover)))
@@ -319,9 +355,17 @@ export default class Spaces extends View {
         cx.notify();
       })
       .on_mouse_down("right", () => openOverlay({ mod: "mttnb-spaces", kind: "popup", width: 200, height: 180, props: { view: "group-menu", group: g.id } }))
+      // Inside the header's 1px border: 12 is 13 in, -1 reaches the header's bottom edge.
+      .when(!g.folded && rows.length > 0, (el) => el.child(guide(div(), t).left(12).top(21).bottom(-1).w(1)))
       .child(svg(`mods/workspace-chrome/chevron-${g.folded ? "right" : "down"}.svg`).size(11).flex_none().text_color(t.dim))
       .child(iconTile(g.icon, 16, svg("mods/workspace-chrome/folder.svg").size(15).flex_none().text_color(t.muted)))
-      .child(div().flex_1().min_w(0).truncate().text_color(t.foreground).font_medium().child(g.name))
+      .child(div().flex_shrink(1).min_w(0).truncate().text_color(t.foreground).font_medium().child(g.name))
+      .when(status === "working", (el) => el.child(svg("mods/workspace-chrome/spinner.svg").size(11).flex_none().text_color(t.working).spin(900)))
+      .when(status === "blocked" || status === "done", (el) => el.child(div().size(6).flex_none().rounded(3).bg(t[status])))
+      .child(h_flex().flex_1().min_w(0).gap(5).justify_end().items_center().text_size(11.5)
+        .when(changes > 0, (el) => el.child(div().flex_none().text_color(t.blocked).child(`\u25cf${changes}`)))
+        .when(ahead > 0, (el) => el.child(div().flex_none().text_color(t.ansi2).child(`\u2191${ahead}`)))
+        .when(behind > 0, (el) => el.child(div().flex_none().text_color(t.ansi1).child(`\u2193${behind}`))))
       .child(div().flex_none().text_size(11).text_color(t.dim).child(String(units.length)));
   }
 
@@ -344,8 +388,9 @@ export default class Spaces extends View {
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
 
-  // `group`: the group the row is listed in (null: none), indented under its header.
-  row({ w, i, g, tree }, t, group) {
+  // `group`: the group the row is listed in (null: none), indented under its header;
+  // `line`: how its group's line passes the row ("mid", "last", "pass", null: not at all).
+  row({ w, i, g, tree }, t, group, line = null) {
     const on = w.active;
     const colors = shared("space.colors") ?? {};
     const color = colors[w.id] ?? "ansi6";
@@ -353,7 +398,8 @@ export default class Spaces extends View {
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
-      .pl(group ? 22 : 8)
+      .when(Boolean(group), (el) => el.ml(20).pl(6))
+      .when(!group, (el) => el.pl(8))
       .pr(8)
       .h(rowHeight({ tree }))
       .flex_none()
@@ -394,13 +440,16 @@ export default class Spaces extends View {
         cx.notify();
       })
       .on_mouse_down("right", () => this.menu(w))
+      .when(line === "mid" || line === "pass", (el) => el.child(guide(div(), t).left(GUIDE).top(0).bottom(0).w(1)))
+      .when(line === "mid", (el) => el.child(guide(div(), t).left(GUIDE + 1).top(14).w(-GUIDE - 1).h(1)))
+      .when(line === "last", (el) => el.child(div().absolute().left(GUIDE).top(0).h(15).w(-GUIDE).border_l_1().border_b_1().border_color(t.dim).opacity(0.45).rounded_bl(5)))
       .child(
         h_flex()
           .gap(9)
           .items_center()
           .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)))
           .when(!tree, el => el.child(iconTile(icons()[w.id], 18, h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?"))))
-          .child(div().flex_shrink(0).max_w(group ? 104 : 118).truncate().text_color(t.foreground).child(w.name))
+          .child(div().flex_shrink(0).max_w(group ? 100 : 118).truncate().text_color(t.foreground).child(w.name))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
       );
   }
@@ -435,6 +484,7 @@ export default class Spaces extends View {
       changed = true;
     }
     if (changed) setShared("space.colors", kept);
+    this.desks = deskStatuses();
     return v_flex().size_full().min_h(0).bg(t.chrome).text_size(13)
       .child(h_flex().h(31).pl(16).pr(10).items_center().justify_between().text_size(11.5).text_color(t.dim)
         .when(!collapsed, el => el.child(div().flex_1().child("Spaces"))

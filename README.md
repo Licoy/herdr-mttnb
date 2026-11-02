@@ -8,13 +8,13 @@ A layout and theme for the Herdr desktop app: a fixed column of coding agents on
 
 ## Features
 
-- **Coding column on the left**: lists every agent Herdr supports (installed ones first, the others greyed out). Click one, or press `1`–`9`, to start it in the current folder.
+- **Coding column on the left**: lists every agent Herdr supports (installed ones first; the others folded into one line, click to see them). Click one, or press `1`–`9`, to start it in the current folder.
 - **Each tab has its own agents**: a new tab starts with an empty picker. A tab can run several agents: switch between them with the tabs at the top of the column, `+` opens another, and "End" (click twice) ends the shown one.
 - **Closing splits leaves the column alone**: the column's agents don't belong to any terminal pane, so closing panes or terminals on the right never takes them down. They end when their tab closes.
-- **The sidebar's Agents list** also shows the column's agents; click one to jump to it.
+- **The sidebar's Agents list** also shows the column's agents; click one to jump to it. The status bar counts them too, and how many are working.
 - **Git at a glance**: after each space's name, its current branch, then `●n` uncommitted changes, `↑n` commits to push and `↓n` to pull (hidden at zero).
 - **Space icons**: right-click a space → **Change icon…** to keep its coloured letter (the default) or use an emoji or a picture (drop one in, or **Choose…** on macOS).
-- **Space groups**: the folder button beside **Spaces** makes a group with a name and an icon (a folder, an emoji or a picture). Its spaces sit under it, indented; click the header to fold or unfold it. Drag a space onto a group's header (or among its spaces), or right-click it → **Move to …**. Right-click a group to edit, move or delete it; deleting one puts its spaces back in the list.
+- **Space groups**: the folder button beside **Spaces** makes a group with a name and an icon (a folder, an emoji or a picture). Its spaces hang under it on a tree line, and a divider sets the spaces in no group apart; click the header to fold or unfold it. A folded group sums up its spaces after its name: the most urgent agent's status and their `●n` `↑n` `↓n`. Drag a space onto a group's header (or among its spaces), or right-click it → **Move to …**. Right-click a group to edit, move or delete it; deleting one puts its spaces back in the list.
 - **Graph panel**: the Files / Changes / Graph buttons on the right of the tab bar open that panel on the right; click again to close it. Graph needs the Git Graph mod (see below); without it the button doesn't show.
 - **Colours**: a warm dark theme `mttnb-dark` and a light theme `mttnb-light`, following the system appearance.
 
@@ -62,7 +62,7 @@ Active in the mttnb layout only.
 
 - The column's agents are background terminals started with `hc run --no-parent`, labelled `mttnb.role=desk`, `mttnb.space`, `mttnb.tab` and `mttnb.agent`; `hc ls` lists them.
 - Starting agents in the column isn't supported yet for spaces on remote machines.
-- `mods/mttnb-tabs`, `mods/mttnb-agents` and `mods/mttnb-spaces` are clones of Herdr's own `tabs`, `agents` and `spaces` mods, modified.
+- `mods/mttnb-tabs`, `mods/mttnb-agents`, `mods/mttnb-spaces` and `mods/mttnb-status` are clones of Herdr's own `tabs`, `agents`, `spaces` and `workspace-status` mods, modified.
 - Space icons and groups are kept in Herdr's shared state; pictures are copied to `~/.config/herdr-app/data/mttnb-spaces/icons/`.
 - Icons are from [Remix Icon](https://remixicon.com) (Apache-2.0).
 
@@ -79,6 +79,7 @@ mods/mttnb-desk/
 mods/mttnb-tabs/
 mods/mttnb-agents/
 mods/mttnb-spaces/
+mods/mttnb-status/
 data/mttnb-spaces/
 ```
 

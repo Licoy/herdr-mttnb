@@ -94,6 +94,19 @@ function folderOf(place) {
 
 const tildify = (path) => (path && path.startsWith(home()) ? `~${path.slice(home().length)}` : path ?? "");
 
+// A folder as the column shows it: ~ for home, /tmp for macOS's /private/tmp, and past
+// `max` characters its middle folders folded into "…" (~/dev/…/web/dashboard).
+function shortPath(path, max = 40) {
+  const p = tildify(path).replace(/^\/private(?=\/(tmp|var)(\/|$))/, "");
+  if (p.length <= max) return p;
+  const parts = p.split("/");
+  const head = parts[0] === "" ? `/${parts[1]}` : parts[0];
+  const rest = parts.slice(parts[0] === "" ? 2 : 1);
+  let tail = rest.pop();
+  while (rest.length > 1 && `${head}/…/${rest.at(-1)}/${tail}`.length <= max) tail = `${rest.pop()}/${tail}`;
+  return rest.length ? `${head}/…/${tail}` : p;
+}
+
 function keyLabel(stroke) {
   const mac = window()?.platform === "macos";
   const names = mac ? { ctrl: "⌃", alt: "⌥", shift: "⇧", cmd: "⌘" } : { ctrl: "Ctrl", alt: "Alt", shift: "Shift", cmd: "Super" };
@@ -159,7 +172,9 @@ export default class MttnbDesk extends View {
   init(_props, cx) {
     this.role = props()?.role ?? "header";
     this.recent = new Map(); // tab id -> the tab's pane the keyboard was last in
+    this.lastDesk = new Map(); // tab id -> the desk its column last showed (to go back to from the picker)
     this.confirmEnd = 0;  // when "end" was clicked once (ms): a second click within 3s ends the desk agent
+    this.showMissing = localStorage.getItem("picker.missing") === "open"; // the not-installed agents, folded at first
     if (this.role === "spare") return;
     if (this.role === "picker") {
       this.agents = null;
@@ -196,10 +211,13 @@ export default class MttnbDesk extends View {
     const named = desks.find((d) => d.address === address);
     const desk = named ?? chosenDesk(place.tab.id, desks);
     switch (c) {
-      case "agent":
-        if (desk) this.focusDesk(place, desk);
+      case "agent": {
+        // From the picker, back to the agent the column showed before it.
+        const back = desk ?? desks.find((d) => d.address === this.lastDesk.get(place.tab.id)) ?? desks[0];
+        if (back) this.focusDesk(place, back);
         else this.openPicker(place);
         break;
+      }
       case "new":
         this.openPicker(place);
         break;
@@ -278,6 +296,7 @@ export default class MttnbDesk extends View {
     const desk = chosenDesk(place.tab.id, desks);
     const f = focused();
     if (f?.pane) this.recent.set(f.tab, f.pane);
+    if (desk) this.lastDesk.set(place.tab.id, desk.address);
     this.deskFocused = Boolean(desk && !f?.pane && f?.terminal === desk.address);
     this.endOrphans();
     const stack = findNode(layout(), "desk-stack");
@@ -372,7 +391,8 @@ export default class MttnbDesk extends View {
       return bar
         .child(svg("mods/mttnb-desk/code.svg").size(14).flex_none().text_color(t.accent))
         .child(div().text_color(t.foreground).font_semibold().child("Coding"))
-        .child(div().flex_1().truncate().text_color(t.dim).child(place ? tildify(folderOf(place)) : ""));
+        .child(div().id("desk-folder").flex_1().truncate().text_color(t.dim)
+          .when(Boolean(place), (el) => el.tooltip(tildify(folderOf(place))).child(shortPath(folderOf(place)))));
     }
     // Same program twice: "Claude Code", "Claude Code 2".
     const seen = {};
@@ -433,7 +453,7 @@ export default class MttnbDesk extends View {
     const missing = list.filter((a) => !a.installed);
     const remote = Boolean(space?.machine);
     const running = place ? desksOf(place.tab.id).length : 0;
-    const dir = place ? tildify(folderOf(place)) : "~";
+    const dir = place ? shortPath(folderOf(place), 48) : "~";
     const row = (a, i) => {
       const on = a.installed && !remote;
       return h_flex().id(`agent-${a.key}`).h(46).px(10).gap(11).flex_none().items_center().rounded(8)
@@ -449,6 +469,19 @@ export default class MttnbDesk extends View {
           .child(!a.installed ? "Not installed" : starting.has(place?.tab.id) ? "" : i < 9 ? String(i + 1) : ""));
     };
     const section = (label) => div().pt(10).pb(2).px(2).text_size(11).text_color(t.dim).child(label);
+    // With nothing installed the list opens by itself: it's all there is to see.
+    const open = this.showMissing || (this.agents !== null && !ready.length);
+    const fold = h_flex().id("picker-missing").mt(8).h(26).px(2).gap(6).flex_none().items_center().rounded(6)
+      .text_size(11).text_color(t.dim).cursor_pointer().hover((s) => s.text_color(t.foreground))
+      .on_click((_e, cx) => {
+        this.showMissing = !open;
+        localStorage.setItem("picker.missing", this.showMissing ? "open" : "folded");
+        cx.notify();
+      })
+      .child(svg(`mods/workspace-chrome/chevron-${open ? "down" : "right"}.svg`).size(11).flex_none())
+      .child(`Not installed · ${missing.length}`)
+      .when(!open, (el) => el.child(h_flex().flex_1().min_w(0).gap(4).justify_end().opacity(0.5)
+        .children(missing.slice(0, 8).map((a) => programIcon(a, 16, t)))));
     return v_flex().id("picker").size_full().bg(t.background).track_focus(this.handle)
       .on_key_down((e, cx) => {
         if (e.modifiers.control || e.modifiers.platform || e.modifiers.alt) return;
@@ -466,7 +499,7 @@ export default class MttnbDesk extends View {
                 : `Starts in ${dir}, in this tab. Terminals stay on the right.`))))
         .when(this.agents === null, (el) => el.child(div().py(8).text_size(12).text_color(t.dim).child(this.failed ? "Couldn't read the agent list" : "Looking for installed agents…")))
         .when(ready.length > 0, (el) => el.child(section(`Installed · ${ready.length}`)).children(ready.map(row)))
-        .when(missing.length > 0, (el) => el.child(section(`Not installed · ${missing.length}`)).children(missing.map((a) => row(a, 99)))))
+        .when(missing.length > 0, (el) => el.child(fold).when(open, (el) => el.children(missing.map((a) => row(a, 99))))))
       .child(h_flex().h(30).px(18).gap(14).flex_none().items_center().border_t(1).border_color(t.border)
         .text_size(11).text_color(t.dim)
         .child("1-9 start")
