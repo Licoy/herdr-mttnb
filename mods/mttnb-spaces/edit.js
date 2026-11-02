@@ -1,15 +1,15 @@
 // mttnb-spaces' overlays, opened as this mod with props.view:
-// - "space-menu" { space }: Herdr's space menu items, then the icon and the groups;
+// - "space-menu" { space }: Herdr's space menu items, Pull / Push (a repo with a remote), then the icon and the groups;
 // - "group-menu" { group }: edit, move, delete a group;
-// - "icon" { space }: a space's icon: its coloured letter, an emoji or a picture;
+// - "icon" { space }: a space's icon: its identicon, an emoji or a picture;
 // - "group" { group? , space? }: a new group (with `space`, that space goes in it) or an existing one.
 // ↑/↓ and Enter in the menus, Esc closes.
 
 import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, appHome, window } from "herdr";
+import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, appHome, window, shared } from "herdr";
 import * as fs from "fs/promises";
-import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, iconTile } from "./store.js";
+import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, iconTile, identicon, fillOf } from "./store.js";
 
 const EMOJI = ["🚀", "🔥", "⭐", "💡", "🧪", "🛠️", "📦", "🐛", "🎨", "📱", "🌐", "🗄️",
   "📊", "🤖", "🔒", "📝", "🧩", "⚡", "🌱", "🎯", "💼", "🏠", "🧠", "☁️"];
@@ -26,12 +26,14 @@ function place(s) {
   return panes().find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
 }
 
-// A space's checkout: "main" (a repo's own), "linked" (a worktree), or null.
+// A space's checkout: "main" (a repo's own), "linked" (a worktree), or null; `remote`:
+// the repo has one (something to pull from and push to).
 async function checkout(folder, on) {
   const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd: folder, on });
   const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: folder, on });
-  if (top.code !== 0 || common.code !== 0) return null;
-  return common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked";
+  if (top.code !== 0 || common.code !== 0) return { kind: null, remote: false };
+  const remotes = await exec("git", ["remote"], { cwd: folder, on });
+  return { kind: common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked", remote: remotes.stdout.trim() !== "" };
 }
 
 export function openIcon(spaceId) {
@@ -67,9 +69,15 @@ export class Editor {
     this.handle.focus();
     if (this.view === "space-menu") {
       this.git = null;
+      this.remote = false;
       const space = spaces().find((s) => s.id === p.space);
       const folder = space && place(space);
-      if (folder) cx.spawn(async (cx) => { this.git = await checkout(folder, space.machine).catch(() => null); cx.notify(); });
+      if (folder) cx.spawn(async (cx) => {
+        const c = await checkout(folder, space.machine).catch(() => ({ kind: null, remote: false }));
+        this.git = c.kind;
+        this.remote = c.remote;
+        cx.notify();
+      });
     }
     if (this.view === "icon" || this.view === "group") {
       const group = groups().find((g) => g.id === p.group);
@@ -109,6 +117,8 @@ export class Editor {
       ["Rename", chrome("square-pen"), () => run("space.rename", { id })],
       ...(this.git ? [["New worktree", chrome("git-branch"), worktree("new")], ["Open worktree", chrome("git-branch"), worktree("open")]] : []),
       ...(this.git === "linked" ? [["Remove worktree", chrome("git-branch"), worktree("remove")]] : []),
+      // The sidebar runs them (see sync in main.js): this menu is gone before git is done.
+      ...(this.git && this.remote ? [["Pull", own("pull"), () => run(`mttnb-spaces.pull:${id}`), true], ["Push", own("push"), () => run(`mttnb-spaces.push:${id}`)]] : []),
       ["Change icon…", own("emoji"), () => openIcon(id), true],
       ...groups().filter((g) => g.id !== mine?.id).map((g, n) => [`Move to ${g.name}`, chrome("folder"), () => moveToGroup(id, g.id), n === 0]),
       ...(mine ? [[`Remove from ${mine.name}`, chrome("minus"), () => moveToGroup(id, null)]] : []),
@@ -209,8 +219,7 @@ export class Editor {
       .child(text);
     // What it looks like with no icon of its own.
     const plain = this.view === "icon"
-      ? h_flex().size(40).rounded(10).bg(t.accent).items_center().justify_center().text_size(20).font_bold().text_color(t.accent_foreground)
-        .child([...(space?.name ?? "?")][0].toUpperCase())
+      ? identicon(p.space, 40, fillOf(t, (shared("space.colors") ?? {})[p.space]))
       : svg(chrome("folder")).size(30).text_color(t.muted);
     const preview = h_flex().size(56).flex_none().rounded(12).bg(t.background).border_1().border_color(t.border)
       .items_center().justify_center().child(iconTile(this.icon(), 40, plain));
@@ -226,12 +235,12 @@ export class Editor {
       .child(h_flex().gap(14).items_center()
         .child(preview)
         .child(h_flex().flex_1().p(3).gap(3).rounded(8).bg(t.background).border_1().border_color(t.border)
-          .child(tab("default", this.view === "icon" ? "Letter" : "Folder"))
+          .child(tab("default", this.view === "icon" ? "Identicon" : "Folder"))
           .child(tab("emoji", "Emoji"))
           .child(tab("image", "Picture"))))
       .child(v_flex().flex_1().min_h(0).pt(12).gap(8)
         .when(this.mode === "default", (el) => el.child(div().text_size(11.5).text_color(t.dim)
-          .child(this.view === "icon" ? "The space's first letter on its colour, as Herdr draws it." : "A folder.")))
+          .child(this.view === "icon" ? "A pattern of its own, on the space's colour." : "A folder.")))
         .when(this.mode === "emoji", (el) => el.child(field(this.emoji))
           .child(div().flex().flex_wrap().gap(4).children(EMOJI.map((e, i) => h_flex().id(`emoji-${i}`).size(34).items_center()
             .justify_center().rounded(7).text_size(18).cursor_pointer().hover((s) => s.bg(t.hover))

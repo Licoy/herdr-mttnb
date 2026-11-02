@@ -2,7 +2,7 @@
 // grouped by machine when more than one is known. After a space's name, the git
 // state where its first terminal is now: branch, uncommitted changes, ahead/behind.
 // Agent state lives in the agents list, not here (only a folded group sums it up).
-// Click to switch, right-click for its menu, drag to reorder.
+// Click to switch, right-click for its menu (Pull / Push run here: see sync), drag to reorder.
 //
 // mttnb's copy of Herdr's spaces mod (mod.clone): a space can have its own icon (an
 // emoji or a picture) and spaces can sit in folding groups, each with a name and an
@@ -11,8 +11,8 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props } from "herdr";
-import { icons, groups, updateGroup, moveToGroup, iconTile } from "./store.js";
+import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props, nextCommand, notify } from "herdr";
+import { icons, groups, updateGroup, moveToGroup, iconTile, identicon, fillOf } from "./store.js";
 import { Editor, openGroup } from "./edit.js";
 
 function find(node, id) {
@@ -39,10 +39,6 @@ const base = (path) => path.replace(/\/+$/, "").split("/").pop();
 // Changes made outside Herdr (an editor's save, a commit in another app): looked
 // for this often, in repos the list shows, while the window is in front.
 const FALLBACK = 60000;
-
-// What a stored color name looks like on an avatar (the same in every mod
-// that draws space avatars): one strong color per hue, light and dark alike.
-const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b7cf6", ansi2: "#3fae6a", ansi1: "#d9649a" };
 
 // A space speaks up only when something in it needs you.
 export function glyph(status) {
@@ -86,6 +82,7 @@ export default class Spaces extends View {
     this.ready = {}; // machine -> its layout was readable at the last look
     this.at = {}; // space -> its where() at the last look
     this.watching = new Set(); // local repos' git folders
+    this.syncing = {}; // space -> "pull" | "push" while it runs
     // Spaces made while this runs wait (at most a moment) for their git, so a
     // worktree appears under its repo instead of jumping there.
     this.shown = new Set(spaces().map((s) => s.id));
@@ -100,6 +97,45 @@ export default class Spaces extends View {
     // `git status` walks the whole tree, on another machine a process there:
     // only when its answer could have changed (see `due`).
     cx.timer.every(250, (cx) => this.checkNew(cx));
+    // "pull:<space>" / "push:<space>" from the space menu (an overlay: it can't
+    // wait for git itself, its tasks end when it closes).
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const c = await nextCommand();
+        const at = c.indexOf(":");
+        const [action, id] = [c.slice(0, at), c.slice(at + 1)];
+        if (action === "pull" || action === "push") this.sync(action, id, cx);
+      }
+    });
+  }
+
+  // Pulls (fast-forward only) or pushes where the space is now; a branch with no
+  // upstream yet is pushed to origin and tracks it. Says how it went in a toast.
+  sync(action, id, cx) {
+    const s = spaces().find((x) => x.id === id);
+    if (!s || this.syncing[id]) return;
+    const key = where(s, panes());
+    const [on, cwd] = JSON.parse(key);
+    this.syncing[id] = action;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      // No prompt can be answered here: asking for a password fails instead of waiting.
+      const git = (...args) => exec("env", ["GIT_TERMINAL_PROMPT=0", "git", ...args], { cwd, on });
+      let r;
+      try {
+        r = await git(...(action === "pull" ? ["pull", "--ff-only"] : ["push"]));
+        if (action === "push" && r.code !== 0 && /no upstream branch/i.test(r.stderr)) r = await git("push", "-u", "origin", "HEAD");
+      } catch (e) {
+        r = { code: -1, stdout: "", stderr: String(e?.message ?? e) };
+      }
+      delete this.syncing[id];
+      const said = (r.code === 0 ? r.stdout || r.stderr : r.stderr || r.stdout).trim().split("\n").filter(Boolean);
+      notify(r.code === 0
+        ? { title: `${action === "pull" ? "Pulled" : "Pushed"} ${s.name}`, body: said.at(-1) ?? "", level: "success", timeout: 4000 }
+        : { title: `Couldn't ${action} ${s.name}`, body: said.slice(-3).join("\n"), level: "error" });
+      this.refreshGit(this.sameRepo(key, Object.keys(this.git)), cx);
+      cx.notify();
+    });
   }
 
   checkNew(cx) {
@@ -392,9 +428,7 @@ export default class Spaces extends View {
   // `line`: how its group's line passes the row ("mid", "last", "pass", null: not at all).
   row({ w, i, g, tree }, t, group, line = null) {
     const on = w.active;
-    const colors = shared("space.colors") ?? {};
-    const color = colors[w.id] ?? "ansi6";
-    const fill = color.startsWith("#") ? color : (MARK[color] ?? t[color]);
+    const fill = fillOf(t, (shared("space.colors") ?? {})[w.id]);
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
@@ -448,8 +482,9 @@ export default class Spaces extends View {
           .gap(9)
           .items_center()
           .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)))
-          .when(!tree, el => el.child(iconTile(icons()[w.id], 18, h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?"))))
+          .when(!tree, el => el.child(iconTile(icons()[w.id], 18, identicon(w.id, 18, fill))))
           .child(div().flex_shrink(0).max_w(group ? 100 : 118).truncate().text_color(t.foreground).child(w.name))
+          .when(Boolean(this.syncing[w.id]), (el) => el.child(svg(`mods/mttnb-spaces/${this.syncing[w.id]}.svg`).size(12).flex_none().text_color(t.working).loop("opacity", { from: 1, to: 0.3, period: 1100 })))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
       );
   }
