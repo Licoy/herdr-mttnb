@@ -18,7 +18,7 @@ import { View, div, svg, image } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import {
   agents, appHome, exec, focused, home, knownAgents, layout, machines, nextCommand, notify, panes,
-  props, readTextFile, run, setShared, shared, spaces, terminals, theme, window,
+  playSound, props, readTextFile, run, settings, setShared, shared, spaces, terminals, theme, window,
 } from "herdr";
 
 const FOCUS = "mttnb.desk.focus"; // shared: the desk address to put the keyboard in once its block shows
@@ -185,6 +185,9 @@ export default class MttnbDesk extends View {
       cx.timer.every(60000, (cx) => this.loadAgents(cx));
       return;
     }
+    // Herdr doesn't render the header while the window is in the back, so alerts
+    // look for status changes on a timer (reading only: it redraws nothing).
+    cx.timer.every(1000, () => this.alertChanges());
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
@@ -358,6 +361,39 @@ export default class MttnbDesk extends View {
     }
     stack.active = stack.children.some((c) => c.id === want) ? want : "picker";
     run("layout.set", { layout: tree });
+  }
+
+  // Herdr's own alerts follow agents(), which leaves desks out (they have no pane), so the
+  // column alerts for them: a sound when one needs the person or finishes (even while
+  // they're looking at it, unlike Herdr), and a toast (unless they're looking) that goes there.
+  // A desk seen for the first time only records its status: a reload doesn't alert.
+  alertChanges() {
+    this.statuses ??= new Map();
+    const place = shownPlace();
+    const shown = place ? chosenDesk(place.tab.id, desksOf(place.tab.id)) : null;
+    const listed = new Set(agents().map((a) => a.address));
+    const live = new Set();
+    for (const d of terminals()) {
+      if (!isDesk(d)) continue;
+      live.add(d.address);
+      const status = d.status === "error" ? "blocked" : d.status;
+      const before = this.statuses.get(d.address);
+      this.statuses.set(d.address, status);
+      if (before === undefined || before === status || listed.has(d.address)) continue;
+      if (status !== "blocked" && status !== "done") continue;
+      const looking = Boolean(window()?.active && shown?.address === d.address && place?.tab.id === tabOfDesk(d));
+      if (settings()?.sounds?.enabled !== false) playSound(status);
+      if (looking) continue;
+      const name = d.program?.name ?? "Agent";
+      const where = placeOfTab(tabOfDesk(d));
+      notify({
+        title: status === "blocked" ? `${name} needs you` : `${name} finished`,
+        body: [where?.space.name, d.title].filter(Boolean).join(" · "),
+        level: status === "blocked" ? "warning" : "success",
+        action: { name: `mttnb-desk.agent:${d.address}` },
+      });
+    }
+    for (const a of this.statuses.keys()) if (!live.has(a)) this.statuses.delete(a);
   }
 
   // A desk whose tab was closed ends with it. Only tabs this copy has seen go: while the
