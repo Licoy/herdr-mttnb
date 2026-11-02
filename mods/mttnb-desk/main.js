@@ -125,6 +125,14 @@ async function userShell() {
   return loginShell;
 }
 
+// notify() only draws a toast inside the window, so the macOS banner comes from osascript
+// (title and body as arguments, never spliced into the script).
+function systemNote(title, body) {
+  if (window()?.platform !== "macos") return;
+  exec("osascript", ["-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)",
+    "-e", "end run", title, body]).catch(() => {});
+}
+
 // The agent runs in the person's interactive login shell, as Herdr's own + menu starts
 // agents: their PATH, version managers and shell functions all apply. The shell ends
 // with the agent, and its tab leaves the header.
@@ -364,8 +372,9 @@ export default class MttnbDesk extends View {
   }
 
   // Herdr's own alerts follow agents(), which leaves desks out (they have no pane), so the
-  // column alerts for them: a sound when one needs the person or finishes (even while
-  // they're looking at it, unlike Herdr), and a toast (unless they're looking) that goes there.
+  // column alerts for them: a sound and a macOS notification when one needs the person or
+  // finishes (even while they're looking at it, unlike Herdr), and a toast (unless they're
+  // looking) that goes there.
   // A desk seen for the first time only records its status: a reload doesn't alert.
   alertChanges() {
     this.statuses ??= new Map();
@@ -383,12 +392,15 @@ export default class MttnbDesk extends View {
       if (status !== "blocked" && status !== "done") continue;
       const looking = Boolean(window()?.active && shown?.address === d.address && place?.tab.id === tabOfDesk(d));
       if (settings()?.sounds?.enabled !== false) playSound(status);
-      if (looking) continue;
       const name = d.program?.name ?? "Agent";
       const where = placeOfTab(tabOfDesk(d));
+      const title = status === "blocked" ? `${name} needs you` : `${name} finished`;
+      const body = [where?.space.name, d.title].filter(Boolean).join(" · ");
+      systemNote(title, body);
+      if (looking) continue;
       notify({
-        title: status === "blocked" ? `${name} needs you` : `${name} finished`,
-        body: [where?.space.name, d.title].filter(Boolean).join(" · "),
+        title,
+        body,
         level: status === "blocked" ? "warning" : "success",
         action: { name: `mttnb-desk.agent:${d.address}` },
       });
