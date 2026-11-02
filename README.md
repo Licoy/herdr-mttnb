@@ -17,7 +17,7 @@ A layout and theme for the Herdr desktop app: a fixed column of coding agents on
 - **Pull / Push**: right-click a space in a git repo with a remote → **Pull** (fast-forward only) or **Push** (a branch with no upstream yet goes to `origin` and tracks it). An arrow pulses after the name while it runs, then a toast says how it went.
 - **Space groups**: the folder button beside **Spaces** makes a group with a name and an icon (a folder, an emoji or a picture). Its spaces hang under it on a tree line, and a divider sets the spaces in no group apart; click the header to fold or unfold it. A folded group sums up its spaces after its name: the most urgent agent's status and their `●n` `↑n` `↓n`. Drag a space onto a group's header (or among its spaces), or right-click it → **Move to …**. Right-click a group to edit, move or delete it; deleting one puts its spaces back in the list.
 - **Graph panel**: the Files / Changes / Graph buttons on the right of the tab bar open that panel on the right; click again to close it. Graph needs the Git Graph mod (see below); without it the button doesn't show.
-- **Colours**: a warm dark theme `mttnb-dark` and a light theme `mttnb-light`, following the system appearance.
+- **Colours**: a dark theme `mttnb-dark` and a light theme `mttnb-light` in Atom One Dark's and Atom One Light's colours, following the system appearance.
 
 ## Install
 

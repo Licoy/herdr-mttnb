@@ -1,6 +1,6 @@
 # mttnb
 
-Herdr's own window with a coding desk built in: the sidebar lists spaces (with their git state, in folding groups, each with its own icon if you like) and agents, and the work area is split into three cards. On the left a fixed Coding column holds the shown tab's agents: with none it lists every agent Herdr knows, and a click starts one. In the middle are the tab's terminals as usual. On the right a Files / Changes / Graph panel opens from the tab bar. The colours are warm: amber `#ffc799` on near-black in dark mode, rust `#c4692c` on warm white in light mode, following the system appearance.
+Herdr's own window with a coding desk built in: the sidebar lists spaces (with their git state, in folding groups, each with its own icon if you like) and agents, and the work area is split into three cards. On the left a fixed Coding column holds the shown tab's agents: with none it lists every agent Herdr knows, and a click starts one. In the middle are the tab's terminals as usual. On the right a Files / Changes / Graph panel opens from the tab bar. The colours follow the system appearance: Atom One Dark's in dark mode (blue `#61afef` on `#282c34`, panels `#21252b`), Atom One Light's in light mode (blue `#4078f2` on `#fafafa`, panels `#eaeaeb`).
 
 ![mttnb](preview.png)
 
@@ -29,16 +29,16 @@ Colours (`themes/mttnb-dark.json` / `themes/mttnb-light.json`):
 
 | token | dark | light |
 | --- | --- | --- |
-| background | `#121212` | `#fbf8f4` |
-| canvas | `#0a0a0a` | `#ece6df` |
-| chrome | `#151515` | `#f3eee8` |
-| surface | `#181818` | `#f7f3ee` |
-| raised | `#262626` | `#e8e1d9` |
-| foreground / muted / dim | `#e6e1dc` / `#a8a39e` / `#6f6a65` | `#2b2724` / `#6b645e` / `#9a928b` |
-| accent | `#ffc799` on `#1a1208` | `#c4692c` on `#ffffff` |
-| border | `#ffffff1a` | `#0000001a` |
-| selected | `#ffc79929` | `#c4692c24` |
-| working / blocked / done / idle | `#8cb4ff` / `#ffb86b` / `#99ffe4` / `#5f5a55` | `#2f6fd6` / `#c47a0a` / `#1d8c6c` / `#a59d96` |
+| background | `#282c34` | `#fafafa` |
+| canvas | `#1e2227` | `#e6e6e7` |
+| chrome | `#21252b` | `#eaeaeb` |
+| surface | `#282c34` | `#fafafa` |
+| popover / raised | `#2c313a` / `#333842` | `#ffffff` / `#dfdfe0` |
+| foreground / muted / dim | `#abb2bf` / `#828997` / `#5c6370` | `#383a42` / `#696c77` / `#a0a1a7` |
+| accent | `#61afef` on `#1e2227` (solid `#4d78cc` on `#ffffff`) | `#4078f2` on `#ffffff` (solid `#526fff` on `#ffffff`) |
+| border | `#181a1f` | `#d4d4d6` |
+| selected | `#3a3f4b` | `#d8d8da` |
+| working / blocked / done / idle | `#61afef` / `#d19a66` / `#98c379` / `#4b5263` | `#4078f2` / `#c18401` / `#50a14f` / `#b4b5ba` |
 
 The ANSI palettes are in the theme files.
 
