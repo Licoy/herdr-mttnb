@@ -17,6 +17,7 @@ Herdr 桌面版的布局与主题：左侧固定一栏写代码的 Agent，右�
 - **Pull / Push**：空间在有远程仓库的 git 仓库里时，右键 → **Pull**（只快进）或 **Push**（还没有上游的分支会推到 `origin` 并跟踪它）。执行时名字后面有个闪烁的箭头，完成后弹出提示告诉你结果。
 - **空间分组**：**Spaces** 旁边的文件夹按钮新建分组，分组有名称和图标（文件夹、emoji 或图片）。组内的空间挂在分组下面的树形连线上，未分组的空间用分隔线隔开；点分组标题可以展开或折叠。折叠后，分组名后面会汇总组内空间的情况：最紧急的 Agent 状态，以及 `●n` `↑n` `↓n` 的合计。把空间拖到分组标题上（或组内空间之间），或者右键空间 → **Move to …** 就能放进分组。右键分组可以编辑、移动或删除；删除分组后，里面的空间回到列表中。
 - **Graph 面板**：tab 栏右侧的 Files / Changes / Graph 按钮在右边展开对应面板，再点一次收起。Graph 需要另外安装 Git Graph mod（见下文），没装时不显示这个按钮。
+- **撤回更改**：在 Changes 面板里，鼠标移到文件上点撤回箭头，丢弃这个文件的改动（未跟踪的文件会被删除）；或者点 **Discard all** 撤回全部文件。按钮会变红并显示「Click again to discard」，3 秒内再点一次才会执行。
 - **配色**：深色主题 `mttnb-dark` 和浅色主题 `mttnb-light`，分别是 Atom One Dark 和 Atom One Light 的配色，跟随系统外观自动切换。
 
 ## 安装
@@ -63,7 +64,7 @@ Git Graph 只在你的仓库里执行 `git`，只有点 Fetch / Push 时才联�
 
 - 左栏的 Agent 是用 `hc run --no-parent` 启动的后台终端，带有 `mttnb.role=desk`、`mttnb.space`、`mttnb.tab`、`mttnb.agent` 标签，可以用 `hc ls` 查看。
 - 远程机器上的空间暂不支持在左栏启动 Agent。
-- `mods/mttnb-tabs`、`mods/mttnb-agents`、`mods/mttnb-spaces` 和 `mods/mttnb-status` 由 Herdr 自带的 `tabs`、`agents`、`spaces`、`workspace-status` mod 克隆后修改而来。
+- `mods/mttnb-tabs`、`mods/mttnb-agents`、`mods/mttnb-spaces`、`mods/mttnb-status` 和 `mods/mttnb-changes` 由 Herdr 自带的 `tabs`、`agents`、`spaces`、`workspace-status`、`changes` mod 克隆后修改而来。
 - 空间图标和分组保存在 Herdr 的共享状态里；选用的图片会复制到 `~/.config/herdr-app/data/mttnb-spaces/icons/`。
 - 图标来自 [Remix Icon](https://remixicon.com)（Apache-2.0）。
 
@@ -81,6 +82,7 @@ mods/mttnb-tabs/
 mods/mttnb-agents/
 mods/mttnb-spaces/
 mods/mttnb-status/
+mods/mttnb-changes/
 data/mttnb-spaces/
 ```
 

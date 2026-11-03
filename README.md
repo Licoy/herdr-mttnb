@@ -17,6 +17,7 @@ A layout and theme for the Herdr desktop app: a fixed column of coding agents on
 - **Pull / Push**: right-click a space in a git repo with a remote → **Pull** (fast-forward only) or **Push** (a branch with no upstream yet goes to `origin` and tracks it). An arrow pulses after the name while it runs, then a toast says how it went.
 - **Space groups**: the folder button beside **Spaces** makes a group with a name and an icon (a folder, an emoji or a picture). Its spaces hang under it on a tree line, and a divider sets the spaces in no group apart; click the header to fold or unfold it. A folded group sums up its spaces after its name: the most urgent agent's status and their `●n` `↑n` `↓n`. Drag a space onto a group's header (or among its spaces), or right-click it → **Move to …**. Right-click a group to edit, move or delete it; deleting one puts its spaces back in the list.
 - **Graph panel**: the Files / Changes / Graph buttons on the right of the tab bar open that panel on the right; click again to close it. Graph needs the Git Graph mod (see below); without it the button doesn't show.
+- **Discard changes**: in the Changes panel, hover a file and click the undo arrow to throw away its changes (an untracked file is deleted), or **Discard all** for every file. The button turns red and says "Click again to discard"; a second click within 3 seconds does it.
 - **Colours**: a dark theme `mttnb-dark` and a light theme `mttnb-light` in Atom One Dark's and Atom One Light's colours, following the system appearance.
 
 ## Install
@@ -63,7 +64,7 @@ Active in the mttnb layout only.
 
 - The column's agents are background terminals started with `hc run --no-parent`, labelled `mttnb.role=desk`, `mttnb.space`, `mttnb.tab` and `mttnb.agent`; `hc ls` lists them.
 - Starting agents in the column isn't supported yet for spaces on remote machines.
-- `mods/mttnb-tabs`, `mods/mttnb-agents`, `mods/mttnb-spaces` and `mods/mttnb-status` are clones of Herdr's own `tabs`, `agents`, `spaces` and `workspace-status` mods, modified.
+- `mods/mttnb-tabs`, `mods/mttnb-agents`, `mods/mttnb-spaces`, `mods/mttnb-status` and `mods/mttnb-changes` are clones of Herdr's own `tabs`, `agents`, `spaces`, `workspace-status` and `changes` mods, modified.
 - Space icons and groups are kept in Herdr's shared state; pictures are copied to `~/.config/herdr-app/data/mttnb-spaces/icons/`.
 - Icons are from [Remix Icon](https://remixicon.com) (Apache-2.0).
 
@@ -81,6 +82,7 @@ mods/mttnb-tabs/
 mods/mttnb-agents/
 mods/mttnb-spaces/
 mods/mttnb-status/
+mods/mttnb-changes/
 data/mttnb-spaces/
 ```
 

@@ -98,15 +98,28 @@ export default class Spaces extends View {
     // only when its answer could have changed (see `due`).
     cx.timer.every(250, (cx) => this.checkNew(cx));
     // "pull:<space>" / "push:<space>" from the space menu (an overlay: it can't
-    // wait for git itself, its tasks end when it closes).
+    // wait for git itself, its tasks end when it closes); "git:[machine, folder]"
+    // from mttnb-changes once it discarded there.
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
         const at = c.indexOf(":");
         const [action, id] = [c.slice(0, at), c.slice(at + 1)];
         if (action === "pull" || action === "push") this.sync(action, id, cx);
+        else if (action === "git") this.refreshFolder(id, cx);
       }
     });
+  }
+
+  // A discard changes the worktree without touching .git (an untracked file, an unstaged
+  // edit), so no watch wakes: look again at the places in that folder.
+  refreshFolder(place, cx) {
+    const [on, root] = JSON.parse(place);
+    const keys = Object.keys(this.git).filter((k) => {
+      const [o, cwd] = JSON.parse(k);
+      return o === on && (cwd === root || cwd.startsWith(`${root}/`));
+    });
+    if (keys.length) this.refreshGit(keys, cx);
   }
 
   // Pulls (fast-forward only) or pushes where the space is now; a branch with no
