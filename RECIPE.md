@@ -75,7 +75,7 @@ The ANSI palettes are in the theme files.
 - **`mods/mttnb-agents`**, a clone of the shipped `agents` 0.1.11: also lists live terminals labelled `mttnb.role=desk` (they have no pane, so Herdr's list leaves them out); clicking one runs `mttnb-desk.agent:<terminal>`.
 - **`keys.json`**, section `layout:mttnb`: `ctrl-shift-a` agent, `ctrl-alt-n` new, `ctrl-alt-up` / `ctrl-alt-down` prev / next, `ctrl-alt-left` / `ctrl-alt-right` go-left / go-right, `cmd-g` graph, `ctrl-shift-f` files, `ctrl-shift-g` changes.
 - **Optional:** the git-graph mod (github.com/rabeeh-ta/herdr-git-graph) for the Graph panel. It runs `git` in the focused repository and reaches the network only on Fetch / Push.
-- Programs run: `hc` (the agents), the person's login shell, the agents themselves, `git` (the spaces' state), `osascript` (macOS's file picker, on Choose…) and `cp`.
+- Programs run: `hc` (the agents), the person's login shell, the agents themselves, `git` (the spaces' state), `osascript` (macOS's file picker, on Choose…, and the desk agents' notifications) and `cp`.
 
 ## Watch out
 
