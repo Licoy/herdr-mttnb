@@ -27,11 +27,22 @@ function find(node, id) {
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 
-// Where a space is now: its first terminal's live folder, else where it was made.
+// A terminal's folder is its shell's: a program in front of it (a dev server, a script
+// that cd's to a temp folder) may run elsewhere, and the shell is still where it was.
+// Not known yet (it was in front before this ran): none, until askShells finds it.
+const shellAt = {}; // pane -> its shell's folder, from when it was last in front or asked
+function folder(p) {
+  if (p.program?.shell) return (shellAt[p.pane] = p.cwd);
+  return shellAt[p.pane] || (p.program?.agent ? p.cwd : null);
+}
+// A process's folder: Linux's /proc, else lsof (macOS).
+const CWD_OF = `readlink "/proc/$1/cwd" 2>/dev/null || lsof -a -d cwd -p "$1" -Fn 2>/dev/null | sed -n 's/^n//p'`;
+
+// Where a space is now: its first terminal's folder, else where it was made.
 // `ps`: panes(), read once by the caller (each read copies every pane).
 function place(s, ps) {
   const tabs = new Set((s.tabs ?? []).map((c) => c.id));
-  return ps.find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
+  return ps.map((p) => tabs.has(p.tab) && folder(p)).find(Boolean) || s.folder;
 }
 const rowHeight = ({ tree }) => (tree ? 28 : 30);
 const where = (s, ps) => JSON.stringify([s.machine ?? null, place(s, ps)]);
@@ -79,6 +90,7 @@ export default class Spaces extends View {
     this.unsure = new Set(); // where()s git couldn't answer for (a machine away)
     this.pending = new Set(); // where()s to look at next
     this.busy = {}; // pane -> an agent working or a program in front of its shell
+    this.asked = new Set(); // panes whose shell's folder was asked for (askShells)
     this.ready = {}; // machine -> its layout was readable at the last look
     this.at = {}; // space -> its where() at the last look
     this.watching = new Set(); // local repos' git folders
@@ -155,9 +167,29 @@ export default class Spaces extends View {
     const now = Date.now();
     const sp = spaces();
     for (const s of sp) if (!this.shown.has(s.id)) this.born[s.id] ??= now;
-    const due = this.due(now, sp, panes());
+    const ps = panes();
+    this.askShells(sp, ps, cx);
+    const due = this.due(now, sp, ps);
     if (due.size) this.refreshGit(due, cx);
     if (sp.some((s) => !this.shown.has(s.id))) cx.notify();
+  }
+
+  // A program already in front when this started: its shell's folder, asked once of the
+  // terminal's own process (the shell). Only on this computer, where `hc` is.
+  askShells(sp, ps, cx) {
+    const local = new Set(sp.filter((s) => !s.machine).flatMap((s) => (s.tabs ?? []).map((t) => t.id)));
+    for (const p of ps) {
+      if (!p.terminal || !local.has(p.tab) || p.program?.shell || p.program?.agent || this.asked.has(p.pane)) continue;
+      this.asked.add(p.pane);
+      cx.spawn(async (cx) => {
+        try {
+          const { pid } = JSON.parse((await hc(["get", p.terminal, "--json"])).stdout);
+          const r = await exec("sh", ["-c", CWD_OF, "sh", String(pid)]);
+          shellAt[p.pane] ??= r.stdout.trim() || null;
+        } catch {}
+        cx.notify();
+      });
+    }
   }
 
   // Places whose git could have changed: new ones (a new space, a cd), where a
@@ -235,9 +267,10 @@ export default class Spaces extends View {
       // Writes nothing under .git (index lock, fsmonitor cookie): watch() would wake on it.
       const r = await exec("git", ["--no-optional-locks", "-c", "core.fsmonitor=false", "status", "--porcelain=v2", "--branch"], { cwd, on });
       if (r.code !== 0) {
-        // Only git's own "no" is remembered as no repo; anything else is asked again.
-        if (!/not a git repository/i.test(r.stderr)) this.unsure.add(key);
-        this.git[key] = null;
+        // Only git's own "no" is remembered as no repo; anything else keeps what it
+        // showed and is asked again.
+        if (/not a git repository/i.test(r.stderr)) this.git[key] = null;
+        else { this.unsure.add(key); this.git[key] ??= null; }
         return;
       }
       // The repo's own .git folder names it; a worktree's top differs from it.
