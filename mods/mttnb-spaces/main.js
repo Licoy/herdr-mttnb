@@ -202,6 +202,8 @@ export default class Spaces extends View {
     const keys = new Set(Object.values(at).filter((k) => JSON.parse(k)[1]));
     const due = new Set([...keys].filter((k) => !(k in this.git)));
     for (const [id, k] of Object.entries(at)) if (this.at[id] && this.at[id] !== k && keys.has(k)) due.add(k);
+    // The space menu (an overlay) asks git where the list does.
+    if (JSON.stringify(at) !== JSON.stringify(this.at)) setShared("mttnb-spaces.places", at);
     this.at = at;
     const spaceOf = {};
     for (const s of sp) for (const t of s.tabs ?? []) spaceOf[t.id] = s;

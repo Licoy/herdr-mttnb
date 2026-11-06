@@ -20,8 +20,11 @@ const chrome = (name) => `mods/workspace-chrome/${name}.svg`;
 const own = (name) => `mods/mttnb-spaces/${name}.svg`;
 const close = () => closeOverlay(props()?.overlay);
 
-// Where a space is now: its first terminal's live folder, else where it was made.
+// Where a space is now: where the list looked (its shell's folder, also while a
+// program runs elsewhere), else its first terminal's live folder, else where it was made.
 function place(s) {
+  const seen = (shared("mttnb-spaces.places") ?? {})[s.id];
+  if (seen) return JSON.parse(seen)[1];
   const tabs = new Set((s.tabs ?? []).map((c) => c.id));
   return panes().find((p) => tabs.has(p.tab) && p.cwd)?.cwd || s.folder;
 }
