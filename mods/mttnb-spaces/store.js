@@ -7,10 +7,18 @@ import { shared, setShared } from "herdr";
 
 const ICONS = "mttnb.space.icons";   // { space id: { emoji } | { image } }; none: its identicon
 const GROUPS = "mttnb.space.groups"; // [{ id, name, icon, folded, spaces: [space id] }], in order
+const RECENT = "mttnb.space.recent"; // [[machine, folder]], the folders new spaces were made in, latest first
 
 export const icons = () => shared(ICONS) ?? {};
 export const groups = () => shared(GROUPS) ?? [];
 export const groupOf = (spaceId) => groups().find((g) => g.spaces.includes(spaceId)) ?? null;
+
+export const recentFolders = (machine) => (shared(RECENT) ?? []).filter(([m]) => m === machine).map(([, f]) => f);
+
+export function addRecent(machine, folder) {
+  const rest = (shared(RECENT) ?? []).filter(([m, f]) => m !== machine || f !== folder);
+  setShared(RECENT, [[machine, folder], ...rest].slice(0, 20));
+}
 
 export function setIcon(spaceId, icon) {
   const all = { ...icons() };

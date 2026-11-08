@@ -3,6 +3,7 @@
 // state where its first terminal is now: branch, uncommitted changes, ahead/behind.
 // Agent state lives in the agents list, not here (only a folded group sums it up).
 // Click to switch, right-click for its menu (Pull / Push run here: see sync), drag to reorder.
+// + asks for the new space's folder (edit.js) rather than taking the shown one's.
 //
 // mttnb's copy of Herdr's spaces mod (mod.clone): a space can have its own icon (an
 // emoji or a picture) and spaces can sit in folding groups, each with a name and an
@@ -13,7 +14,7 @@ import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props, nextCommand, notify } from "herdr";
 import { icons, groups, updateGroup, moveToGroup, iconTile, identicon, fillOf } from "./store.js";
-import { Editor, openGroup } from "./edit.js";
+import { Editor, openGroup, openNewSpace } from "./edit.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -369,12 +370,12 @@ export default class Spaces extends View {
         .when(!collapsed, el => el.child(div().flex_1().truncate().child(m ?? "This computer"))
           .when(!connected, el => el.child(div().flex_none().child((machine?.state ?? "asleep").replace(/_/g, " "))))
           .when(connected, el => el.child(div().id(`machine-add-${m ?? "local"}`).flex_none().px(4).rounded(4).hover(s => s.bg(t.hover).text_color(t.foreground))
-            .on_click((_e, cx) => { cx.stop_propagation(); run("space.new", m ? { machine: m } : {}); }).child("+")))
+            .on_click((_e, cx) => { cx.stop_propagation(); openNewSpace(m); }).child("+")))
           .child(div().size(6).rounded(3).flex_none().bg(connected ? t.ansi2 : t.dim))
           .child(svg(`mods/workspace-chrome/chevron-${folded ? "right" : "down"}.svg`).size(11).flex_none()));
       const empty = h_flex().id(`machine-new-${m ?? "local"}`).h(28).flex_none().px(8).gap(7).items_center().rounded(7)
         .text_size(12).text_color(t.dim).hover(s => s.bg(t.hover).text_color(t.foreground))
-        .on_click(() => run("space.new", m ? { machine: m } : {}))
+        .on_click(() => openNewSpace(m))
         .child(svg("mods/workspace-chrome/plus.svg").size(12)).when(!collapsed, el => el.child("New space there"));
       return [head, ...(folded ? [] : mine.length ? this.withGroups(mine, t, collapsed, m === null) : [loading(m) ? loadingRow(m) : empty])];
     });
@@ -574,7 +575,7 @@ export default class Spaces extends View {
           .child(div().id("group-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))
             .on_click(() => openGroup({})).child(svg("mods/workspace-chrome/folder-plus.svg").size(14))))
         .child(div().id("space-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))
-          .on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))))
+          .on_click(() => openNewSpace(sp.find((s) => s.active)?.machine ?? null)).child(svg("mods/workspace-chrome/plus.svg").size(14))))
       .child(v_flex().flex_1().min_h(0).px(8).pb(14).overflow_y_scrollbar().mode("always")
         .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.overGroup = null; cx.notify(); })
         .children(this.grouped(t, collapsed)));

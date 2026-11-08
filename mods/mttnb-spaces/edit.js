@@ -2,14 +2,15 @@
 // - "space-menu" { space }: Herdr's space menu items, Pull / Push (a repo with a remote), then the icon and the groups;
 // - "group-menu" { group }: edit, move, delete a group;
 // - "icon" { space }: a space's icon: its identicon, an emoji or a picture;
-// - "group" { group? , space? }: a new group (with `space`, that space goes in it) or an existing one.
+// - "group" { group? , space? }: a new group (with `space`, that space goes in it) or an existing one;
+// - "new-space" { machine }: a new space in a folder typed, chosen with the system's picker or one used before.
 // ↑/↓ and Enter in the menus, Esc closes.
 
 import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, appHome, window, shared } from "herdr";
+import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, home, appHome, window, shared, pickFolder } from "herdr";
 import * as fs from "fs/promises";
-import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, iconTile, identicon, fillOf } from "./store.js";
+import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, recentFolders, addRecent, iconTile, identicon, fillOf } from "./store.js";
 
 const EMOJI = ["🚀", "🔥", "⭐", "💡", "🧪", "🛠️", "📦", "🐛", "🎨", "📱", "🌐", "🗄️",
   "📊", "🤖", "🔒", "📝", "🧩", "⚡", "🌱", "🎯", "💼", "🏠", "🧠", "☁️"];
@@ -39,6 +40,34 @@ async function checkout(folder, on) {
   return { kind: common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked", remote: remotes.stdout.trim() !== "" };
 }
 
+// The folder `typed` names on that machine (~ and a relative path from its home), or null
+// when there's no such folder. No sh there to ask (Windows): as typed.
+async function resolveFolder(typed, on) {
+  const script = 'd=$1; case $d in "~") d=$HOME;; "~/"*) d=$HOME/${d#"~/"};; /*) ;; *) d=$HOME/$d;; esac; cd -- "$d" 2>/dev/null && pwd';
+  const r = await exec("sh", ["-c", script, "sh", typed], { on }).catch(() => null);
+  if (!r) return typed;
+  return r.code === 0 ? r.stdout.trim() : null;
+}
+
+// Folders to offer a new space on that machine: the ones new spaces were made in, then the spaces' own.
+function knownFolders(machine) {
+  const seen = shared("mttnb-spaces.places") ?? {};
+  const spaced = spaces().filter((s) => (s.machine ?? null) === machine)
+    .map((s) => (seen[s.id] ? JSON.parse(seen[s.id])[1] : s.folder));
+  return [...new Set([...recentFolders(machine), ...spaced].filter(Boolean))].slice(0, 8);
+}
+
+// A path as people read it: ~ for the home folder (here).
+const tilde = (path, machine) => {
+  const h = home();
+  return !machine && h && (path === h || path.startsWith(`${h}/`)) ? `~${path.slice(h.length)}` : path;
+};
+
+// `machine`: where the space lives, null for this computer.
+export function openNewSpace(machine) {
+  openOverlay({ mod: "mttnb-spaces", kind: "dialog", width: 460, height: 440, props: { view: "new-space", machine: machine ?? null } });
+}
+
 export function openIcon(spaceId) {
   openOverlay({ mod: "mttnb-spaces", kind: "dialog", width: 420, height: 440, props: { view: "icon", space: spaceId } });
 }
@@ -63,6 +92,13 @@ async function keepPicture(source) {
   return `${ICON_DIR}/${name}`;
 }
 
+const button = (t, id, text, primary, action) => h_flex().id(id).h(32).px(14).items_center().rounded(8)
+  .border_1().border_color(primary ? t.solid : t.input).bg(primary ? t.solid : t.raised)
+  .text_color(primary ? t.solid_foreground : t.foreground).text_size(12.5).font_medium().cursor_pointer()
+  .hover((s) => s.opacity(0.88)).on_click(action).child(text);
+const field = (t, state) => Input.new(state).h(36).px(10).rounded(9).border_1().border_color(t.input).bg(t.background)
+  .text_size(12.8).text_color(t.foreground);
+
 export class Editor {
   constructor(cx) {
     const p = props() ?? {};
@@ -81,6 +117,15 @@ export class Editor {
         this.remote = c.remote;
         cx.notify();
       });
+    }
+    if (this.view === "new-space") {
+      this.error = null;
+      this.busy = false;
+      this.folder = InputState.new({ placeholder: "A folder, e.g. ~/code/app" });
+      this.folder.on("change", (_e, cx) => { this.error = null; cx.notify(); });
+      this.folder.on("submit", (_e, cx) => this.create(cx));
+      this.folder.focus();
+      cx.timer.after(600, () => this.folder.focus());
     }
     if (this.view === "icon" || this.view === "group") {
       const group = groups().find((g) => g.id === p.group);
@@ -175,7 +220,40 @@ export class Editor {
     close();
   }
 
+  create(cx) {
+    const typed = this.folder.value().trim();
+    if (!typed || this.busy) return;
+    const machine = props()?.machine ?? null;
+    this.busy = true;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      const folder = await resolveFolder(typed, machine);
+      this.busy = false;
+      if (!folder) {
+        this.error = `There's no folder ${typed}${machine ? ` on ${machine}` : ""}.`;
+        cx.notify();
+        return;
+      }
+      addRecent(machine, folder);
+      close();
+      run("space.new", { folder, machine: machine ?? "" });
+    });
+  }
+
+  // The system's folder picker (this computer only): its folder goes in the field.
+  chooseFolder(cx) {
+    cx.spawn(async (cx) => {
+      const folder = await pickFolder({ prompt: "Choose" }).catch(() => null);
+      if (!folder) return;
+      this.folder.set_value(tilde(folder, null));
+      this.error = null;
+      this.folder.focus();
+      cx.notify();
+    });
+  }
+
   render(cx) {
+    if (this.view === "new-space") return this.renderNewSpace();
     return this.view === "space-menu" || this.view === "group-menu" ? this.renderMenu() : this.renderDialog(cx);
   }
 
@@ -201,6 +279,42 @@ export class Editor {
           .child(div().flex_1().truncate().child(it[0])))));
   }
 
+  renderNewSpace() {
+    const t = theme();
+    const machine = props()?.machine ?? null;
+    const label = (text) => div().pt(14).pb(7).text_size(11.5).text_color(t.dim).child(text);
+    const typed = this.folder.value().trim();
+    const known = knownFolders(machine);
+    return v_flex().id("mttnb-new-space").track_focus(this.handle)
+      .on_key_down((e, cx) => { if (e.key === "escape") { close(); cx.stop_propagation(); } })
+      .size_full().min_h(0).p(18).bg(t.popover).text_color(t.foreground)
+      .child(h_flex().items_center().child(div().flex_1().text_size(15).font_semibold().child(machine ? `New space on ${machine}` : "New space"))
+        .child(div().text_size(11).text_color(t.dim).child("Esc")))
+      .child(label("Folder"))
+      .child(h_flex().gap(8).items_center()
+        .child(field(t, this.folder).flex_1())
+        // pickFolder shows this computer's folders only.
+        .when(!machine, (el) => el.child(h_flex().id("choose").h(36).px(12).gap(6).flex_none().items_center().rounded(9).border_1()
+          .border_color(t.input).bg(t.raised).text_size(12.5).cursor_pointer().hover((s) => s.opacity(0.88))
+          .on_click((_e, cx) => this.chooseFolder(cx))
+          .child(svg(chrome("folder")).size(14).text_color(t.muted)).child("Choose…"))))
+      .child(div().pt(6).text_size(11.5).text_color(this.error ? t.blocked : t.dim)
+        .child(this.error ?? "Its terminals start here."))
+      .child(v_flex().flex_1().min_h(0)
+        .when(known.length > 0, (el) => el.child(label("Recent"))
+          .child(v_flex().id("recent").flex_1().min_h(0).overflow_y_scrollbar().children(known.map((f, i) => h_flex().id(`recent-${i}`)
+            .h(30).flex_none().px(8).gap(9).items_center().rounded(7).cursor_pointer()
+            .when(typed === tilde(f, machine) || typed === f, (el) => el.bg(t.selected))
+            .hover((s) => s.bg(t.hover))
+            .on_click((_e, cx) => { this.folder.set_value(tilde(f, machine)); this.error = null; this.folder.focus(); cx.notify(); })
+            .child(svg(chrome("folder")).size(14).flex_none().text_color(t.muted))
+            .child(div().flex_1().truncate().text_size(12.5).child(tilde(f, machine))))))))
+      .child(h_flex().pt(14).gap(8).justify_end()
+        .child(button(t, "cancel", "Cancel", false, () => close()))
+        .child(button(t, "create", this.busy ? "Adding…" : "Add space", true, (_e, cx) => this.create(cx))
+          .when(!typed, (el) => el.opacity(0.5))));
+  }
+
   renderDialog(cx) {
     const t = theme();
     const p = props() ?? {};
@@ -208,12 +322,6 @@ export class Editor {
     const group = groups().find((g) => g.id === p.group);
     const title = this.view === "icon" ? `Icon for ${space?.name ?? "space"}` : group ? "Edit group" : "New group";
     const label = (text) => div().pt(14).pb(7).text_size(11.5).text_color(t.dim).child(text);
-    const button = (id, text, primary, action) => h_flex().id(id).h(32).px(14).items_center().rounded(8)
-      .border_1().border_color(primary ? t.solid : t.input).bg(primary ? t.solid : t.raised)
-      .text_color(primary ? t.solid_foreground : t.foreground).text_size(12.5).font_medium().cursor_pointer()
-      .hover((s) => s.opacity(0.88)).on_click(action).child(text);
-    const field = (state) => Input.new(state).h(36).px(10).rounded(9).border_1().border_color(t.input).bg(t.background)
-      .text_size(12.8).text_color(t.foreground);
     const tab = (mode, text) => h_flex().id(`mode-${mode}`).flex_1().h(28).items_center().justify_center().rounded(6)
       .text_size(12).cursor_pointer()
       .bg(this.mode === mode ? t.raised : t.background).text_color(this.mode === mode ? t.foreground : t.muted)
@@ -233,7 +341,7 @@ export class Editor {
       .size_full().min_h(0).p(18).bg(t.popover).text_color(t.foreground)
       .child(h_flex().items_center().child(div().flex_1().text_size(15).font_semibold().child(title))
         .child(div().text_size(11).text_color(t.dim).child("Esc")))
-      .when(this.view === "group", (el) => el.child(label("Name")).child(field(this.name)))
+      .when(this.view === "group", (el) => el.child(label("Name")).child(field(t, this.name)))
       .child(label("Icon"))
       .child(h_flex().gap(14).items_center()
         .child(preview)
@@ -244,7 +352,7 @@ export class Editor {
       .child(v_flex().flex_1().min_h(0).pt(12).gap(8)
         .when(this.mode === "default", (el) => el.child(div().text_size(11.5).text_color(t.dim)
           .child(this.view === "icon" ? "A pattern of its own, on the space's colour." : "A folder.")))
-        .when(this.mode === "emoji", (el) => el.child(field(this.emoji))
+        .when(this.mode === "emoji", (el) => el.child(field(t, this.emoji))
           .child(div().flex().flex_wrap().gap(4).children(EMOJI.map((e, i) => h_flex().id(`emoji-${i}`).size(34).items_center()
             .justify_center().rounded(7).text_size(18).cursor_pointer().hover((s) => s.bg(t.hover))
             .on_click((_e, cx) => { this.emoji.set_value(e); cx.notify(); })
@@ -261,7 +369,7 @@ export class Editor {
           .child(div().text_size(11).text_color(t.dim).child("PNG, JPG, GIF, WebP or SVG; square works best.")))
         .when(Boolean(this.error), (el) => el.child(div().text_size(11.5).text_color(t.blocked).child(this.error))))
       .child(h_flex().pt(14).gap(8).justify_end()
-        .child(button("cancel", "Cancel", false, () => close()))
-        .child(button("save", "Save", true, () => this.save())));
+        .child(button(t, "cancel", "Cancel", false, () => close()))
+        .child(button(t, "save", "Save", true, () => this.save())));
   }
 }
