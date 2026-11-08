@@ -10,7 +10,7 @@ import { div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, home, appHome, window, shared, pickFolder } from "herdr";
 import * as fs from "fs/promises";
-import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, recentFolders, addRecent, iconTile, identicon, fillOf } from "./store.js";
+import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, recentFolders, addRecent, shownName, iconTile, identicon, fillOf } from "./store.js";
 
 const EMOJI = ["🚀", "🔥", "⭐", "💡", "🧪", "🛠️", "📦", "🐛", "🎨", "📱", "🌐", "🗄️",
   "📊", "🤖", "🔒", "📝", "🧩", "⚡", "🌱", "🎯", "💼", "🏠", "🧠", "☁️"];
@@ -168,8 +168,8 @@ export class Editor {
       // The sidebar runs them (see sync in main.js): this menu is gone before git is done.
       ...(this.git && this.remote ? [["Pull", own("pull"), () => run(`mttnb-spaces.pull:${id}`), true], ["Push", own("push"), () => run(`mttnb-spaces.push:${id}`)]] : []),
       ["Change icon…", own("emoji"), () => openIcon(id), true],
-      ...groups().filter((g) => g.id !== mine?.id).map((g, n) => [`Move to ${g.name}`, chrome("folder"), () => moveToGroup(id, g.id), n === 0]),
-      ...(mine ? [[`Remove from ${mine.name}`, chrome("minus"), () => moveToGroup(id, null)]] : []),
+      ...groups().filter((g) => g.id !== mine?.id).map((g, n) => [`Move to ${shownName(g.name)}`, chrome("folder"), () => moveToGroup(id, g.id), n === 0]),
+      ...(mine ? [[`Remove from ${shownName(mine.name)}`, chrome("minus"), () => moveToGroup(id, null)]] : []),
       ["New group…", chrome("folder-plus"), () => openGroup({ space: id }), !groups().length],
       ["Close", chrome("x"), () => run("space.close", { id }), true],
     ];
@@ -320,7 +320,7 @@ export class Editor {
     const p = props() ?? {};
     const space = spaces().find((s) => s.id === p.space);
     const group = groups().find((g) => g.id === p.group);
-    const title = this.view === "icon" ? `Icon for ${space?.name ?? "space"}` : group ? "Edit group" : "New group";
+    const title = this.view === "icon" ? `Icon for ${shownName(space?.name) ?? "space"}` : group ? "Edit group" : "New group";
     const label = (text) => div().pt(14).pb(7).text_size(11.5).text_color(t.dim).child(text);
     const tab = (mode, text) => h_flex().id(`mode-${mode}`).flex_1().h(28).items_center().justify_center().rounded(6)
       .text_size(12).cursor_pointer()

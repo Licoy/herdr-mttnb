@@ -13,7 +13,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, agents, terminals, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, props, nextCommand, notify } from "herdr";
-import { icons, groups, updateGroup, moveToGroup, iconTile, identicon, fillOf } from "./store.js";
+import { icons, groups, updateGroup, moveToGroup, privacy, setPrivacy, shownName, iconTile, identicon, fillOf } from "./store.js";
 import { Editor, openGroup, openNewSpace } from "./edit.js";
 
 function find(node, id) {
@@ -158,8 +158,8 @@ export default class Spaces extends View {
       delete this.syncing[id];
       const said = (r.code === 0 ? r.stdout || r.stderr : r.stderr || r.stdout).trim().split("\n").filter(Boolean);
       notify(r.code === 0
-        ? { title: `${action === "pull" ? "Pulled" : "Pushed"} ${s.name}`, body: said.at(-1) ?? "", level: "success", timeout: 4000 }
-        : { title: `Couldn't ${action} ${s.name}`, body: said.slice(-3).join("\n"), level: "error" });
+        ? { title: `${action === "pull" ? "Pulled" : "Pushed"} ${shownName(s.name)}`, body: said.at(-1) ?? "", level: "success", timeout: 4000 }
+        : { title: `Couldn't ${action} ${shownName(s.name)}`, body: said.slice(-3).join("\n"), level: "error" });
       this.refreshGit(this.sameRepo(key, Object.keys(this.git)), cx);
       cx.notify();
     });
@@ -450,7 +450,7 @@ export default class Spaces extends View {
       .when(!g.folded && rows.length > 0, (el) => el.child(guide(div(), t).left(12).top(21).bottom(-1).w(1)))
       .child(svg(`mods/workspace-chrome/chevron-${g.folded ? "right" : "down"}.svg`).size(11).flex_none().text_color(t.dim))
       .child(iconTile(g.icon, 16, svg("mods/workspace-chrome/folder.svg").size(15).flex_none().text_color(t.muted)))
-      .child(div().flex_shrink(1).min_w(0).truncate().text_color(t.foreground).font_medium().child(g.name))
+      .child(div().flex_shrink(1).min_w(0).truncate().text_color(t.foreground).font_medium().child(shownName(g.name)))
       .when(status === "working", (el) => el.child(svg("mods/workspace-chrome/spinner.svg").size(11).flex_none().text_color(t.working).spin(900)))
       .when(status === "blocked" || status === "done", (el) => el.child(div().size(6).flex_none().rounded(3).bg(t[status])))
       .child(h_flex().flex_1().min_w(0).gap(5).justify_end().items_center().text_size(11.5)
@@ -538,7 +538,7 @@ export default class Spaces extends View {
           .items_center()
           .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)))
           .when(!tree, el => el.child(iconTile(icons()[w.id], 18, identicon(w.id, 18, fill))))
-          .child(div().flex_shrink(0).max_w(group ? 100 : 118).truncate().text_color(t.foreground).child(w.name))
+          .child(div().flex_shrink(0).max_w(group ? 100 : 118).truncate().text_color(t.foreground).child(shownName(w.name)))
           .when(Boolean(this.syncing[w.id]), (el) => el.child(svg(`mods/mttnb-spaces/${this.syncing[w.id]}.svg`).size(12).flex_none().text_color(t.working).loop("opacity", { from: 1, to: 0.3, period: 1100 })))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
       );
@@ -578,6 +578,13 @@ export default class Spaces extends View {
     return v_flex().size_full().min_h(0).bg(t.chrome).text_size(13)
       .child(h_flex().h(31).pl(16).pr(10).items_center().justify_between().text_size(11.5).text_color(t.dim)
         .when(!collapsed, el => el.child(div().flex_1().child("Spaces"))
+          // Privacy: the spaces' and groups' names masked, for sharing a screen.
+          .child(div().id("privacy").size(26).flex_none().flex().items_center().justify_center().rounded(6)
+            .when(privacy(), el => el.bg(t.selected).text_color(t.accent))
+            .hover(s => s.bg(t.hover).text_color(privacy() ? t.accent : t.foreground))
+            .tooltip(privacy() ? "Show names" : "Hide names")
+            .on_click(() => setPrivacy(!privacy()))
+            .child(svg(`mods/mttnb-spaces/${privacy() ? "eye-off" : "eye"}.svg`).size(14)))
           .child(div().id("group-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))
             .on_click(() => openGroup({})).child(svg("mods/workspace-chrome/folder-plus.svg").size(14))))
         .child(div().id("space-new").size(26).flex_none().flex().items_center().justify_center().rounded(6).hover(s => s.bg(t.hover).text_color(t.foreground))

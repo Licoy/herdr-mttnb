@@ -7,6 +7,7 @@ import { shared, setShared } from "herdr";
 
 const ICONS = "mttnb.space.icons";   // { space id: { emoji } | { image } }; none: its identicon
 const GROUPS = "mttnb.space.groups"; // [{ id, name, icon, folded, spaces: [space id] }], in order
+const PRIVATE = "mttnb.space.private"; // true: names masked (sharing a screen)
 const RECENT = "mttnb.space.recent"; // [[machine, folder]], the folders new spaces were made in, latest first
 
 export const icons = () => shared(ICONS) ?? {};
@@ -18,6 +19,17 @@ export const recentFolders = (machine) => (shared(RECENT) ?? []).filter(([m]) =>
 export function addRecent(machine, folder) {
   const rest = (shared(RECENT) ?? []).filter(([m, f]) => m !== machine || f !== folder);
   setShared(RECENT, [[machine, folder], ...rest].slice(0, 20));
+}
+
+export const privacy = () => shared(PRIVATE) === true;
+export const setPrivacy = (on) => setShared(PRIVATE, on);
+
+// A space's or group's name as shown: while privacy is on, its first and last character
+// around four stars (study-grok: s****k), whatever its length.
+export function shownName(name) {
+  if (!privacy() || !name) return name;
+  const c = [...name];
+  return c.length === 1 ? "*" : c.length === 2 ? `${c[0]}*` : `${c[0]}****${c.at(-1)}`;
 }
 
 export function setIcon(spaceId, icon) {
