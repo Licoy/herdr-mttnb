@@ -85,11 +85,15 @@ function placeOfTerminal(address) {
   return tab ? placeOfTab(tab) : null;
 }
 
-// Where new desk agents start: the tab's first terminal's live folder, else the space's.
+// Where new desk agents start: the tab's first terminal's shell's folder (a program in
+// front of it, a dev server or a script in a temp folder, may run elsewhere), else where
+// the space is. mttnb-spaces keeps both: mttnb-spaces.shells and mttnb-spaces.places.
 function folderOf(place) {
-  const tabs = new Set((place.space.tabs ?? []).map((t) => t.id));
-  return panes().find((p) => p.tab === place.tab.id && p.cwd)?.cwd
-    || panes().find((p) => tabs.has(p.tab) && p.cwd)?.cwd || place.space.folder || home();
+  const shells = shared("mttnb-spaces.shells") ?? {};
+  const at = (p) => (p.program?.shell ? p.cwd : shells[p.pane] || (p.program?.agent ? p.cwd : null));
+  const seen = (shared("mttnb-spaces.places") ?? {})[place.space.id];
+  return panes().filter((p) => p.tab === place.tab.id).map(at).find(Boolean)
+    || (seen && JSON.parse(seen)[1]) || place.space.folder || home();
 }
 
 const tildify = (path) => (path && path.startsWith(home()) ? `~${path.slice(home().length)}` : path ?? "");

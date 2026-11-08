@@ -94,6 +94,7 @@ export default class Spaces extends View {
     this.asked = new Set(); // panes whose shell's folder was asked for (askShells)
     this.ready = {}; // machine -> its layout was readable at the last look
     this.at = {}; // space -> its where() at the last look
+    this.shells = {}; // pane -> its shell's folder, as last shared (mttnb-spaces.shells)
     this.watching = new Set(); // local repos' git folders
     this.syncing = {}; // space -> "pull" | "push" while it runs
     // Spaces made while this runs wait (at most a moment) for their git, so a
@@ -206,6 +207,11 @@ export default class Spaces extends View {
     // The space menu (an overlay) asks git where the list does.
     if (JSON.stringify(at) !== JSON.stringify(this.at)) setShared("mttnb-spaces.places", at);
     this.at = at;
+    // The Coding column starts its agents in a shell's folder too, not a program's.
+    const shells = {};
+    for (const p of ps) if (p.terminal && folder(p)) shells[p.pane] = folder(p);
+    if (JSON.stringify(shells) !== JSON.stringify(this.shells)) setShared("mttnb-spaces.shells", shells);
+    this.shells = shells;
     const spaceOf = {};
     for (const s of sp) for (const t of s.tabs ?? []) spaceOf[t.id] = s;
     const busy = {};
