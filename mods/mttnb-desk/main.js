@@ -87,13 +87,11 @@ function placeOfTerminal(address) {
 
 // Where new desk agents start: the tab's first terminal's shell's folder (a program in
 // front of it, a dev server or a script in a temp folder, may run elsewhere), else where
-// the space is. mttnb-spaces keeps both: mttnb-spaces.shells and mttnb-spaces.places.
+// the space was created. mttnb-spaces shares root folders in mttnb-spaces.shells.
 function folderOf(place) {
   const shells = shared("mttnb-spaces.shells") ?? {};
-  const at = (p) => (p.program?.shell ? p.cwd : shells[p.pane] || (p.program?.agent ? p.cwd : null));
-  const seen = (shared("mttnb-spaces.places") ?? {})[place.space.id];
-  return panes().filter((p) => p.tab === place.tab.id).map(at).find(Boolean)
-    || (seen && JSON.parse(seen)[1]) || place.space.folder || home();
+  const own = panes().filter((p) => p.tab === place.tab.id && p.terminal);
+  return own.map((p) => shells[p.pane]).find(Boolean) || place.space.folder || home();
 }
 
 const tildify = (path) => (path && path.startsWith(home()) ? `~${path.slice(home().length)}` : path ?? "");
@@ -157,6 +155,16 @@ async function startDesk(place, agent) {
   }
   starting.add(tab.id);
   try {
+    const pane = panes().find((p) => p.tab === tab.id && p.terminal);
+    if (pane) {
+      const terminal = await exec("hc", ["get", pane.terminal, "--json"]);
+      if (terminal.code !== 0) throw new Error(terminal.stderr || terminal.stdout);
+      const { pid } = JSON.parse(terminal.stdout);
+      if (!Number.isInteger(pid) || pid <= 0) throw new Error("Terminal has no live root process");
+      const cwd = await exec("sh", ["-c", `readlink "/proc/$1/cwd" 2>/dev/null || lsof -a -d cwd -p "$1" -Fn 2>/dev/null | sed -n 's/^n//p'`, "sh", String(pid)]);
+      if (cwd.code !== 0 || !cwd.stdout.trim()) throw new Error(cwd.stderr || "Could not read terminal root folder");
+      setShared("mttnb-spaces.shells", { ...(shared("mttnb-spaces.shells") ?? {}), [pane.pane]: cwd.stdout.trim() });
+    }
     const r = await exec("hc", ["run", "--bg", "--json", "--keep", "--no-parent", "--no-notify",
       "--cwd", folderOf(place),
       "--label", "mttnb.role=desk", "--label", `mttnb.space=${space.id}`, "--label", `mttnb.tab=${tab.id}`,

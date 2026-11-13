@@ -31,10 +31,12 @@ const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
 // A terminal's folder is its shell's: a program in front of it (a dev server, a script
 // that cd's to a temp folder) may run elsewhere, and the shell is still where it was.
 // Not known yet (it was in front before this ran): none, until askShells finds it.
-const shellAt = {}; // pane -> its shell's folder, from when it was last in front or asked
+const shellAt = {}; // terminal -> its root process's folder
+let localTerminals = new Set();
 function folder(p) {
-  if (p.program?.shell) return (shellAt[p.pane] = p.cwd);
-  return shellAt[p.pane] || (p.program?.agent ? p.cwd : null);
+  if (localTerminals.has(p.terminal)) return shellAt[p.terminal] || null;
+  if (p.program?.shell) return (shellAt[p.terminal] = p.cwd);
+  return shellAt[p.terminal] || (p.program?.agent ? p.cwd : null);
 }
 // A process's folder: Linux's /proc, else lsof (macOS).
 const CWD_OF = `readlink "/proc/$1/cwd" 2>/dev/null || lsof -a -d cwd -p "$1" -Fn 2>/dev/null | sed -n 's/^n//p'`;
@@ -91,7 +93,7 @@ export default class Spaces extends View {
     this.unsure = new Set(); // where()s git couldn't answer for (a machine away)
     this.pending = new Set(); // where()s to look at next
     this.busy = {}; // pane -> an agent working or a program in front of its shell
-    this.asked = new Set(); // panes whose shell's folder was asked for (askShells)
+    this.asked = new Map(); // terminal -> last observed cwd/program, queried again when it changes
     this.ready = {}; // machine -> its layout was readable at the last look
     this.at = {}; // space -> its where() at the last look
     this.shells = {}; // pane -> its shell's folder, as last shared (mttnb-spaces.shells)
@@ -176,19 +178,36 @@ export default class Spaces extends View {
     if (sp.some((s) => !this.shown.has(s.id))) cx.notify();
   }
 
-  // A program already in front when this started: its shell's folder, asked once of the
-  // terminal's own process (the shell). Only on this computer, where `hc` is.
+  // Foreground shell/agent classification says nothing about the root process's cwd.
+  // Ask on first sight and on foreground changes, including a normal shell cd.
   askShells(sp, ps, cx) {
     const local = new Set(sp.filter((s) => !s.machine).flatMap((s) => (s.tabs ?? []).map((t) => t.id)));
+    localTerminals = new Set(ps.filter((p) => local.has(p.tab)).map((p) => p.terminal));
+    for (const terminal of this.asked.keys()) if (!localTerminals.has(terminal)) {
+      this.asked.delete(terminal);
+      delete shellAt[terminal];
+    }
     for (const p of ps) {
-      if (!p.terminal || !local.has(p.tab) || p.program?.shell || p.program?.agent || this.asked.has(p.pane)) continue;
-      this.asked.add(p.pane);
+      if (!p.terminal || !local.has(p.tab)) continue;
+      const observed = JSON.stringify([p.cwd, p.program, p.status]);
+      if (this.asked.get(p.terminal) === observed) continue;
+      this.asked.set(p.terminal, observed);
+      const published = (shared("mttnb-spaces.shells") ?? {})[p.pane];
       cx.spawn(async (cx) => {
         try {
-          const { pid } = JSON.parse((await hc(["get", p.terminal, "--json"])).stdout);
+          const terminal = await hc(["get", p.terminal, "--json"]);
+          if (terminal.code !== 0) throw new Error(terminal.stderr || terminal.stdout);
+          const { pid } = JSON.parse(terminal.stdout);
+          if (!Number.isInteger(pid) || pid <= 0) throw new Error("Terminal has no live root process");
           const r = await exec("sh", ["-c", CWD_OF, "sh", String(pid)]);
-          shellAt[p.pane] ??= r.stdout.trim() || null;
-        } catch {}
+          if (r.code !== 0 || !r.stdout.trim()) throw new Error(r.stderr || "Could not read terminal root folder");
+          if (this.asked.get(p.terminal) === observed) {
+            const current = (shared("mttnb-spaces.shells") ?? {})[p.pane];
+            shellAt[p.terminal] = current !== published ? current : r.stdout.trim();
+          }
+        } catch (e) {
+          console.log(`mttnb-spaces: could not read ${p.terminal} root folder: ${e}`);
+        }
         cx.notify();
       });
     }
@@ -199,6 +218,10 @@ export default class Spaces extends View {
   // a machine that is back, and repos in view whose fallback is due.
   due(now, sp, ps) {
     // Moved there: what it knew of that place may be old.
+    const published = shared("mttnb-spaces.shells") ?? {};
+    for (const p of ps) if (localTerminals.has(p.terminal) && p.pane in this.shells && published[p.pane] && published[p.pane] !== this.shells[p.pane]) {
+      shellAt[p.terminal] = published[p.pane]; // a desk launch just read the root process
+    }
     const at = {};
     for (const s of sp) at[s.id] = where(s, ps);
     const keys = new Set(Object.values(at).filter((k) => JSON.parse(k)[1]));

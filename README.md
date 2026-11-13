@@ -8,7 +8,7 @@ A layout and theme for the Herdr desktop app: a fixed column of coding agents on
 
 ## Features
 
-- **Coding column on the left**: lists every agent Herdr supports (installed ones first; the others folded into one line, click to see them). Click one, or press `1`–`9`, to start it in the current folder.
+- **Coding column on the left**: lists every agent Herdr supports (installed ones first; the others folded into one line, click to see them). Click one, or press `1`–`9`, to start it in the current tab's first terminal's root process folder, read afresh before launch even while another program runs in front.
 - **Each tab has its own agents**: a new tab starts with an empty picker. A tab can run several agents: switch between them with the tabs at the top of the column, `+` opens another, and "End" (click twice) ends the shown one.
 - **Closing splits leaves the column alone**: the column's agents don't belong to any terminal pane, so closing panes or terminals on the right never takes them down. They end when their tab closes.
 - **The sidebar's Agents list** also shows the column's agents; click one to jump to it. The status bar counts them too, and how many are working.
