@@ -1,7 +1,7 @@
 // Workspace spaces: stable colored avatars, worktrees under their checkout,
 // grouped by machine when more than one is known. After a space's name, the git
 // state where its first terminal is now: branch, uncommitted changes, ahead/behind.
-// Agent state lives in the agents list, not here (only a folded group sums it up).
+// Agent counts sit over each space's icon; only the green working ring spins.
 // Click to switch, right-click for its menu (Pull / Push run here: see sync), drag to reorder.
 // + asks for the new space's folder (edit.js) rather than taking the shown one's.
 //
@@ -54,30 +54,42 @@ const base = (path) => path.replace(/\/+$/, "").split("/").pop();
 // for this often, in repos the list shows, while the window is in front.
 const FALLBACK = 60000;
 
-// A space speaks up only when something in it needs you.
-export function glyph(status) {
-  return status === "blocked" || status === "done" ? "●" : "·";
-}
-
-export function tone(t, status) {
-  return t[status] ?? t.unknown;
-}
-
 // The most urgent of some agent statuses; idle and none count as nothing.
 const URGENT = ["blocked", "done", "working"];
 const urgent = (statuses) => URGENT.find((s) => statuses.includes(s)) ?? null;
 
-// Each space's Coding column agents' statuses (mttnb-desk): they have no pane, so a
-// space's own status leaves them out.
-function deskStatuses() {
-  const listed = new Map(agents().map((a) => [a.address, a.status]));
+// Include pane agents, Coding desks and their live descendants, once per address.
+function agentStatuses() {
+  const list = agents();
+  const live = terminals().filter((k) => k.state === "live");
+  const listed = new Map(list.map((a) => [a.address, a.status]));
+  const spaceOf = new Map(list.map((a) => [a.address, a.space]));
+  const byAddress = new Map(live.map((k) => [k.address, k]));
+  const children = new Map();
+  for (const k of live) {
+    if (k.labels?.["mttnb.role"] === "desk" && !spaceOf.has(k.address)) spaceOf.set(k.address, k.labels["mttnb.space"]);
+    if (!children.has(k.parent)) children.set(k.parent, []);
+    children.get(k.parent).push(k.address);
+  }
   const out = {};
-  for (const k of terminals()) {
-    if (k.state !== "live" || k.labels?.["mttnb.role"] !== "desk") continue;
-    const s = listed.get(k.address) ?? k.status;
-    (out[k.labels["mttnb.space"]] ??= []).push(s === "error" ? "blocked" : s);
+  // Map iteration also visits descendants assigned during this walk.
+  for (const [address, space] of spaceOf) {
+    const status = listed.get(address) ?? byAddress.get(address)?.status;
+    if (space && status) (out[space] ??= []).push(status === "error" ? "blocked" : status);
+    for (const child of children.get(address) ?? []) if (!spaceOf.has(child)) spaceOf.set(child, space);
   }
   return out;
+}
+
+function agentBadge(statuses) {
+  const counts = { blocked: 0, working: 0, idle: 0 };
+  for (const status of statuses) {
+    // Completed agents are no longer working; only blocked agents need input.
+    const key = status === "done" ? "idle" : status;
+    if (key in counts) counts[key]++;
+  }
+  const status = ["blocked", "working", "idle"].find((s) => counts[s] > 0);
+  return status ? { status, count: counts[status], counts } : null;
 }
 
 // A group's spaces hang off a line under its header's chevron, 13px in: from the
@@ -450,7 +462,7 @@ export default class Spaces extends View {
     const holdsShown = g.folded && rows.some((r) => r.w.active);
     const target = this.pressed !== null && this.overGroup === g.id;
     const sum = (k) => rows.reduce((n, r) => n + (r.g?.[k] ?? 0), 0);
-    const status = g.folded ? urgent(rows.flatMap((r) => [r.w.status, ...(this.desks[r.w.id] ?? [])])) : null;
+    const status = g.folded ? urgent(rows.flatMap((r) => [r.w.status, ...(this.agentStates[r.w.id] ?? [])])) : null;
     const changes = g.folded ? sum("changes") : 0, ahead = g.folded ? sum("ahead") : 0, behind = g.folded ? sum("behind") : 0;
     return h_flex().relative().id(`group-${g.id}`).h(30).flex_none().px(8).gap(7).items_center().rounded(8)
       .border_1().border_color(target ? t.accent : "#00000000")
@@ -502,11 +514,28 @@ export default class Spaces extends View {
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
 
+  spaceIcon(w, t, tree = false) {
+    const fill = fillOf(t, (shared("space.colors") ?? {})[w.id]);
+    const badge = agentBadge(this.agentStates[w.id] ?? []);
+    const icon = tree ? svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)
+      : iconTile(icons()[w.id], 18, identicon(w.id, 18, fill));
+    const tile = div().relative().size(18).flex_none().flex().items_center().justify_center().child(icon);
+    if (!badge) return tile;
+    const { status, count, counts } = badge;
+    const color = t[status === "working" ? "ansi2" : status === "blocked" ? "ansi3" : "ansi4"];
+    const size = count < 10 ? 16 : count < 100 ? 20 : 24;
+    return tile.child(div().id(`space-agents-${w.id}`).absolute().top(-5).left(-6).size(size).rounded(size / 2)
+      .bg(t.chrome).text_color(color).flex().items_center().justify_center()
+      .tooltip(`${counts.working} working · ${counts.idle} idle · ${counts.blocked} needs you`)
+      .when(status === "working", (el) => el.child(svg("mods/workspace-chrome/spinner.svg").absolute().top(0).left(0).size(size).spin(900)))
+      .when(status !== "working", (el) => el.border(1.5).border_color(color))
+      .child(div().text_size(count < 100 ? 9 : 8).font_semibold().child(String(count))));
+  }
+
   // `group`: the group the row is listed in (null: none), indented under its header;
   // `line`: how its group's line passes the row ("mid", "last", "pass", null: not at all).
   row({ w, i, g, tree }, t, group, line = null) {
     const on = w.active;
-    const fill = fillOf(t, (shared("space.colors") ?? {})[w.id]);
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
@@ -559,8 +588,8 @@ export default class Spaces extends View {
         h_flex()
           .gap(9)
           .items_center()
-          .when(Boolean(tree), el => el.pl(22).child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim)))
-          .when(!tree, el => el.child(iconTile(icons()[w.id], 18, identicon(w.id, 18, fill))))
+          .when(Boolean(tree), el => el.pl(22))
+          .child(this.spaceIcon(w, t, Boolean(tree)))
           .child(div().flex_shrink(0).max_w(group ? 100 : 118).truncate().text_color(t.foreground).child(shownName(w.name)))
           .when(Boolean(this.syncing[w.id]), (el) => el.child(svg(`mods/mttnb-spaces/${this.syncing[w.id]}.svg`).size(12).flex_none().text_color(t.working).loop("opacity", { from: 1, to: 0.3, period: 1100 })))
           .child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1()),
@@ -572,13 +601,14 @@ export default class Spaces extends View {
       .id(`space-${w.id}`)
       .h(26)
       .flex_none()
+      .items_center()
       .justify_center()
-      .gap(4)
+      .gap(8)
       .when(w.active, (el) => el.bg(t.raised))
       .hover((s) => s.bg(t.hover))
       .on_click(() => run("space.select", { id: w.id }))
       .child(div().text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
-      .child(div().text_color(tone(t, w.status)).child(glyph(w.status)));
+      .child(this.spaceIcon(w, t));
   }
 
   render(cx) {
@@ -597,7 +627,7 @@ export default class Spaces extends View {
       changed = true;
     }
     if (changed) setShared("space.colors", kept);
-    this.desks = deskStatuses();
+    this.agentStates = agentStatuses();
     return v_flex().size_full().min_h(0).bg(t.chrome).text_size(13)
       .child(h_flex().h(31).pl(16).pr(10).items_center().justify_between().text_size(11.5).text_color(t.dim)
         .when(!collapsed, el => el.child(div().flex_1().child("Spaces"))
