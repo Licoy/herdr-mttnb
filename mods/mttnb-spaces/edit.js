@@ -7,7 +7,7 @@
 // ↑/↓ and Enter in the menus, Esc closes.
 
 import { div, svg, image } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
+import { v_flex, h_flex, InputState, Input, Checkbox } from "gpui-base";
 import { run, props, closeOverlay, openOverlay, theme, spaces, panes, exec, home, appHome, window, shared, pickFolder } from "herdr";
 import * as fs from "fs/promises";
 import { icons, groups, groupOf, setIcon, updateGroup, moveToGroup, addGroup, removeGroup, moveGroup, recentFolders, addRecent, shownName, iconTile, identicon, fillOf } from "./store.js";
@@ -40,13 +40,14 @@ async function checkout(folder, on) {
   return { kind: common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked", remote: remotes.stdout.trim() !== "" };
 }
 
-// The folder `typed` names on that machine (~ and a relative path from its home), or null
-// when there's no such folder. No sh there to ask (Windows): as typed.
-async function resolveFolder(typed, on) {
-  const script = 'd=$1; case $d in "~") d=$HOME;; "~/"*) d=$HOME/${d#"~/"};; /*) ;; *) d=$HOME/$d;; esac; cd -- "$d" 2>/dev/null && pwd';
-  const r = await exec("sh", ["-c", script, "sh", typed], { on }).catch(() => null);
-  if (!r) return typed;
-  return r.code === 0 ? r.stdout.trim() : null;
+// Resolve on the target machine; only create missing folders with explicit consent.
+async function resolveFolder(typed, on, createMissing) {
+  const script = 'd=$1; case $d in "~") d=$HOME;; "~/"*) d=$HOME/${d#"~/"};; /*) ;; *) d=$HOME/$d;; esac; if [ "$2" = 1 ] && [ ! -d "$d" ]; then mkdir -p -- "$d" || exit; fi; unset CDPATH; cd -- "$d" && pwd';
+  const r = await exec("sh", ["-c", script, "sh", typed, createMissing ? "1" : "0"], { on });
+  if (r.code !== 0) throw new Error(r.stderr.trim() || `Folder command exited with code ${r.code}`);
+  const folder = r.stdout.trim();
+  if (!folder) throw new Error("Folder command returned no path");
+  return folder;
 }
 
 // Folders to offer a new space on that machine: the ones new spaces were made in, then the spaces' own.
@@ -121,6 +122,7 @@ export class Editor {
     if (this.view === "new-space") {
       this.error = null;
       this.busy = false;
+      this.createMissing = false;
       this.folder = InputState.new({ placeholder: "A folder, e.g. ~/code/app" });
       this.folder.on("change", (_e, cx) => { this.error = null; cx.notify(); });
       this.folder.on("submit", (_e, cx) => this.create(cx));
@@ -224,19 +226,22 @@ export class Editor {
     const typed = this.folder.value().trim();
     if (!typed || this.busy) return;
     const machine = props()?.machine ?? null;
+    const createMissing = this.createMissing;
     this.busy = true;
+    this.error = null;
     cx.notify();
     cx.spawn(async (cx) => {
-      const folder = await resolveFolder(typed, machine);
-      this.busy = false;
-      if (!folder) {
-        this.error = `There's no folder ${typed}${machine ? ` on ${machine}` : ""}.`;
+      try {
+        const folder = await resolveFolder(typed, machine, createMissing);
+        run("space.new", { folder, machine: machine ?? "" });
+        addRecent(machine, folder);
+        close();
+      } catch (e) {
+        this.error = `Couldn't add ${typed}${machine ? ` on ${machine}` : ""}: ${e?.message ?? e}`;
+      } finally {
+        this.busy = false;
         cx.notify();
-        return;
       }
-      addRecent(machine, folder);
-      close();
-      run("space.new", { folder, machine: machine ?? "" });
     });
   }
 
@@ -298,6 +303,13 @@ export class Editor {
           .border_color(t.input).bg(t.raised).text_size(12.5).cursor_pointer().hover((s) => s.opacity(0.88))
           .on_click((_e, cx) => this.chooseFolder(cx))
           .child(svg(chrome("folder")).size(14).text_color(t.muted)).child("Choose…"))))
+      .child(Checkbox.new("create-missing-folder").checked(this.createMissing).mt(9)
+        .flex().items_center().gap(7).text_size(11.5).cursor_pointer()
+        .on_change((checked, cx) => { this.createMissing = checked; this.error = null; cx.notify(); })
+        .child(div().size(14).flex_none().flex().items_center().justify_center().rounded(3).border_1()
+          .border_color(t.input).bg(this.createMissing ? t.solid : t.background)
+          .text_color(t.solid_foreground).text_size(11).child(this.createMissing ? "✓" : ""))
+        .child("Create folder if missing"))
       .child(div().pt(6).text_size(11.5).text_color(this.error ? t.blocked : t.dim)
         .child(this.error ?? "Its terminals start here."))
       .child(v_flex().flex_1().min_h(0)
